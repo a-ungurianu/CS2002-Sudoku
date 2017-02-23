@@ -1,6 +1,8 @@
 #ifndef SUDOKU_H
 #define SUDOKU_H
 
+#include <stdio.h>
+
 struct sudoku {
     unsigned size;
     int* cells;
@@ -19,5 +21,9 @@ int* getCol(struct sudoku *sudoku, unsigned col);
 
 // Setter functions
 void setCell(struct sudoku *sudoku, unsigned row, unsigned col, int value);
+
+// I/O
+struct sudoku *readSudoku(FILE *inputFile);
+void writeSudoku(FILE *outputFile, struct sudoku *sudoku);
 
 #endif

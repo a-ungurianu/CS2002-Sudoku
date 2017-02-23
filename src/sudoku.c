@@ -4,10 +4,11 @@
 
 #include "sudoku.h"
 
+
 struct sudoku *createSudoku(unsigned size) {
     struct sudoku *new_sudoku = malloc(sizeof(struct sudoku));
     new_sudoku->size = size;
-    new_sudoku->cells = malloc(sizeof(int) * (size * size));
+    new_sudoku->cells = malloc(sizeof(int) * (size * size) * (size * size));
 
     return new_sudoku;
 }
@@ -15,7 +16,7 @@ struct sudoku *copySudoku(struct sudoku* sudoku) {
     assert(sudoku != NULL);
     unsigned size = sudoku->size;
     struct sudoku *new_sudoku = createSudoku(size);
-    memcpy(new_sudoku->cells, sudoku->cells, sizeof(int) * (size * size));
+    memcpy(new_sudoku->cells, sudoku->cells, sizeof(int) * (size * size) * (size * size));
 
     return new_sudoku;
 }
@@ -30,22 +31,37 @@ void freeSudoku(struct sudoku* sudoku) {
 int getCell(struct sudoku *sudoku, unsigned row, unsigned col) {
     assert(sudoku != NULL);
     unsigned size = sudoku->size;
-    assert(row < size);
-    assert(col < size);
+    assert(row < size * size);
+    assert(col < size * size);
 
-    return sudoku->cells[row*size + col];
+    return sudoku->cells[row * (size * size) + col];
 
 }
 
-int* getSquare(struct sudoku *sudoku, unsigned square_row, unsigned square_col);
+int* getSquare(struct sudoku *sudoku, unsigned square_row, unsigned square_col) {
+    assert(sudoku != NULL);
+    unsigned size = sudoku->size;
+    assert(square_row < size);
+    assert(square_col < size);
+
+    int *square_values = malloc(sizeof(int) * (size * size));
+    for(int i = 0; i < size; ++i) {
+        for(int j = 0; j < size; ++j) {
+            square_values[i*size + j] = getCell(sudoku, square_row * size + i,
+                                                        square_col * size + j);
+        }
+    }
+
+    return square_values;
+}
 
 int* getRow(struct sudoku *sudoku, unsigned row) {
     assert(sudoku != NULL);
     unsigned size = sudoku->size;
     assert(row < size);
 
-    int* row_values = malloc(sizeof(int) * size);
-    memcpy(row_values,&sudoku->cells[row * size], size);
+    int* row_values = malloc(sizeof(int) * (size * size));
+    memcpy(row_values,&sudoku->cells[row * (size * size)], size * size);
 
     return row_values;
 }
@@ -56,8 +72,41 @@ int* getCol(struct sudoku *sudoku, unsigned col);
 void setCell(struct sudoku *sudoku, unsigned row, unsigned col, int value) {
     assert(sudoku != NULL);
     unsigned size = sudoku->size;
-    assert(row < size);
-    assert(col < size);
+    assert(row < size * size);
+    assert(col < size * size);
 
-    sudoku->cells[row*size + col] = value;
+    sudoku->cells[row * (size * size) + col] = value;
+}
+
+
+// I/O
+struct sudoku *readSudoku(FILE *inputFile) {
+    unsigned size;
+    fscanf(inputFile, "%d", &size);
+    struct sudoku *sudoku = createSudoku(size);
+
+    for(int i = 0; i < size * size; ++i) {
+        for(int j = 0; j < size * size; ++j) {
+            int value;
+            fscanf(inputFile, "%d", &value);
+            setCell(sudoku, i, j, value);
+        }
+    }
+
+    return sudoku;
+}
+
+void writeSudoku(FILE *outputFile, struct sudoku *sudoku) {
+    assert(sudoku == NULL);
+
+    unsigned width = 2;
+    unsigned size = sudoku->size;
+    fprintf(outputFile, "%d\n", sudoku->size);
+
+    for(int i = 0; i < size * size; ++i) {
+        for(int j = 0; j < size * size; ++j) {
+            fprintf(outputFile, "%*d", width, getCell(sudoku, i, j));
+        }
+        fprintf(outputFile, "\n");
+    }
 }
