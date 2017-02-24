@@ -4,31 +4,32 @@
 
 #include "sudoku.h"
 
+typedef unsigned __int128 uint128_t;
 
-struct sudoku *createSudoku(unsigned size) {
-    struct sudoku *new_sudoku = malloc(sizeof(struct sudoku));
+sudoku *createSudoku(unsigned size) {
+    sudoku *new_sudoku = malloc(sizeof(sudoku));
     new_sudoku->size = size;
     new_sudoku->cells = malloc(sizeof(int) * (size * size) * (size * size));
 
     return new_sudoku;
 }
-struct sudoku *copySudoku(struct sudoku* sudoku) {
-    assert(sudoku != NULL);
-    unsigned size = sudoku->size;
-    struct sudoku *new_sudoku = createSudoku(size);
-    memcpy(new_sudoku->cells, sudoku->cells, sizeof(int) * (size * size) * (size * size));
+sudoku *copySudoku(sudoku* srcSudoku) {
+    assert(srcSudoku != NULL);
+    unsigned size = srcSudoku->size;
+    sudoku * new_sudoku = createSudoku(size);
+    memcpy(new_sudoku->cells, srcSudoku->cells, sizeof(int) * (size * size) * (size * size));
 
     return new_sudoku;
 }
 
-void freeSudoku(struct sudoku* sudoku) {
+void freeSudoku(sudoku* sudoku) {
     assert(sudoku != NULL);
     free(sudoku->cells);
     free(sudoku);
 }
 
 // Getter functions
-int getCell(struct sudoku *sudoku, unsigned row, unsigned col) {
+int getCell(sudoku *sudoku, unsigned row, unsigned col) {
     assert(sudoku != NULL);
     unsigned size = sudoku->size;
     assert(row < size * size);
@@ -38,15 +39,15 @@ int getCell(struct sudoku *sudoku, unsigned row, unsigned col) {
 
 }
 
-int* getSquare(struct sudoku *sudoku, unsigned square_row, unsigned square_col) {
+int* getSquare(sudoku *sudoku, unsigned square_row, unsigned square_col) {
     assert(sudoku != NULL);
     unsigned size = sudoku->size;
     assert(square_row < size);
     assert(square_col < size);
 
     int *square_values = malloc(sizeof(int) * (size * size));
-    for(int i = 0; i < size; ++i) {
-        for(int j = 0; j < size; ++j) {
+    for(unsigned i = 0; i < size; ++i) {
+        for(unsigned j = 0; j < size; ++j) {
             square_values[i*size + j] = getCell(sudoku, square_row * size + i,
                                                         square_col * size + j);
         }
@@ -55,7 +56,7 @@ int* getSquare(struct sudoku *sudoku, unsigned square_row, unsigned square_col) 
     return square_values;
 }
 
-int* getRow(struct sudoku *sudoku, unsigned row) {
+int* getRow(sudoku *sudoku, unsigned row) {
     assert(sudoku != NULL);
     unsigned size = sudoku->size;
     assert(row < size);
@@ -66,14 +67,39 @@ int* getRow(struct sudoku *sudoku, unsigned row) {
     return row_values;
 }
 
-int* getCol(struct sudoku *sudoku, unsigned col);
+int* getCol(sudoku *sudoku, unsigned col);
 
 // Setter functions
-void setCell(struct sudoku *sudoku, unsigned row, unsigned col, int value) {
+void setCell(sudoku *sudoku, unsigned row, unsigned col, int value) {
     assert(sudoku != NULL);
     unsigned size = sudoku->size;
     assert(row < size * size);
     assert(col < size * size);
 
     sudoku->cells[row * (size * size) + col] = value;
+}
+
+// Checking function
+CheckResult check_list(int* values, unsigned size) {
+    unsigned listSize = size * size;
+    uint128_t valuesSeen = 0;
+
+    for(unsigned i = 0; i < listSize; ++i) {
+        if(values[i] != 0) {
+            if((valuesSeen & (1 << values[i])) != 0) {
+                return CR_INVALID;
+            }
+            else {
+                valuesSeen |= 1 << values[i];
+            }
+        }
+    }
+
+    for(unsigned i = 1; i <= listSize; ++i) {
+        if((valuesSeen & (1 << values[i])) == 0) {
+            return CR_INCOMPLETE;
+        }
+    }
+
+    return CR_COMPLETE;
 }

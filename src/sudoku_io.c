@@ -1,32 +1,33 @@
 #include "sudoku_io.h"
 #include <assert.h>
+#include <math.h>
 
 // I/O
-struct sudoku *readSudoku(FILE *inputFile) {
+sudoku *readSudoku(FILE *inputFile) {
     unsigned size;
     fscanf(inputFile, "%d", &size);
-    struct sudoku *sudoku = createSudoku(size);
+    sudoku *s = createSudoku(size);
 
-    for(int i = 0; i < size * size; ++i) {
-        for(int j = 0; j < size * size; ++j) {
-            int value;
+    for(unsigned i = 0; i < size * size; ++i) {
+        for(unsigned j = 0; j < size * size; ++j) {
+            unsigned value;
             fscanf(inputFile, "%d", &value);
-            setCell(sudoku, i, j, value);
+            setCell(s, i, j, value);
         }
     }
 
-    return sudoku;
+    return s;
 }
 
-void writeSudoku(FILE *outputFile, struct sudoku *sudoku) {
-    assert(sudoku == NULL);
+void writeSudoku(FILE *outputFile, sudoku *sudoku) {
+    assert(sudoku != NULL);
 
-    unsigned width = 2;
     unsigned size = sudoku->size;
-    fprintf(outputFile, "%d\n", sudoku->size);
+    unsigned width = floor(log10(size * size)) + 2;
+    // fprintf(outputFile, "%d\n", sudoku->size);
 
-    for(int i = 0; i < size * size; ++i) {
-        for(int j = 0; j < size * size; ++j) {
+    for(unsigned i = 0; i < size * size; ++i) {
+        for(unsigned j = 0; j < size * size; ++j) {
             fprintf(outputFile, "%*d", width, getCell(sudoku, i, j));
         }
         fprintf(outputFile, "\n");

@@ -1,24 +1,31 @@
 #ifndef SUDOKU_H
 #define SUDOKU_H
 
-struct sudoku {
+typedef struct {
     unsigned size;
     int* cells;
-};
+} sudoku;
+
+typedef enum {
+    CR_INVALID,
+    CR_INCOMPLETE,
+    CR_COMPLETE
+} CheckResult;
 
 // Allocation handling
-struct sudoku *createSudoku(unsigned size);
-struct sudoku *copySudoku(struct sudoku* sudoku);
-void freeSudoku(struct sudoku* sudoku);
+sudoku *createSudoku(unsigned size);
+sudoku *copySudoku(sudoku* sudoku);
+void freeSudoku(sudoku* sudoku);
 
 // Getter functions
-int getCell(struct sudoku *sudoku, unsigned row, unsigned col);
-int* getSquare(struct sudoku *sudoku, unsigned square_row, unsigned square_col);
-int* getRow(struct sudoku *sudoku, unsigned row);
-int* getCol(struct sudoku *sudoku, unsigned col);
+int getCell(sudoku *sudoku, unsigned row, unsigned col);
+int* getSquare(sudoku *sudoku, unsigned square_row, unsigned square_col);
+int* getRow(sudoku *sudoku, unsigned row);
+int* getCol(sudoku *sudoku, unsigned col);
 
 // Setter functions
-void setCell(struct sudoku *sudoku, unsigned row, unsigned col, int value);
+void setCell(sudoku *sudoku, unsigned row, unsigned col, int value);
 
-
+// Checking function
+CheckResult check_list(int* values, unsigned size);
 #endif
