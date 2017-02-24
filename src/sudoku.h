@@ -6,6 +6,11 @@ typedef struct {
     int* cells;
 } sudoku;
 
+typedef struct {
+    unsigned row;
+    unsigned col;
+} position;
+
 typedef enum {
     CR_INVALID,
     CR_INCOMPLETE,
