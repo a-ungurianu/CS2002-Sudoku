@@ -18,7 +18,7 @@ ${OBJ_DIR}/test_stuff.o: ${SRC_DIR}/sudoku_io.h ${SRC_DIR}/sudoku.h ${SRC_DIR}/t
 
 ${OBJ_DIR}/sudoku_check.o: ${SRC_DIR}/sudoku_io.h ${SRC_DIR}/sudoku.h ${SRC_DIR}/sudoku_check.c
 	@mkdir -p out
-	${CC} ${CFLAGS} ${SRC_DIR}/test_stuff.c -o $@
+	${CC} ${CFLAGS} ${SRC_DIR}/sudoku_check.c -o $@
 
 test_stuff: ${OBJ_DIR}/test_stuff.o ${OBJ_DIR}/sudoku_io.o ${OBJ_DIR}/sudoku.o
 	${CC} ${LDFLAGS} $^ -o $@
