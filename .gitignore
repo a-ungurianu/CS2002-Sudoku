@@ -1,1 +1,4 @@
 out/
+sudoku_check
+test_stuff
+src/test_stuff.c
