@@ -23,7 +23,7 @@ void writeSudoku(FILE *outputFile, sudoku *sudoku) {
     assert(sudoku != NULL);
 
     unsigned size = sudoku->size;
-    unsigned width = floor(log10(size * size)) + 2;
+    const unsigned width = 3;
     // fprintf(outputFile, "%d\n", sudoku->size);
 
     for(unsigned i = 0; i < size * size; ++i) {
