@@ -1,4 +1,5 @@
 out/
 sudoku_check
 test_stuff
+sudoku_solver
 src/test_stuff.c
