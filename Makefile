@@ -26,5 +26,8 @@ test_stuff: ${OBJ_DIR}/test_stuff.o ${OBJ_DIR}/sudoku_io.o ${OBJ_DIR}/sudoku.o
 sudoku_check: ${OBJ_DIR}/sudoku_check.o ${OBJ_DIR}/sudoku_io.o ${OBJ_DIR}/sudoku.o
 	${CC} ${LDFLAGS} $^ -o $@
 
+test:
+	stacscheck stacscheck/
+
 clean:
 	@rm out/*

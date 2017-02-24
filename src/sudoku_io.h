@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 // I/O
-sudoku *readSudoku(FILE *inputFile);
-void writeSudoku(FILE *outputFile, sudoku *sudoku);
+sudoku *read_sudoku(FILE *inputFile);
+void write_sudoku(FILE *outputFile, sudoku *sudoku);
 
 #endif
