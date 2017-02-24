@@ -59,15 +59,25 @@ int* getSquare(sudoku *sudoku, unsigned square_row, unsigned square_col) {
 int* getRow(sudoku *sudoku, unsigned row) {
     assert(sudoku != NULL);
     unsigned size = sudoku->size;
-    assert(row < size);
+    assert(row < size * size);
 
     int* row_values = malloc(sizeof(int) * (size * size));
-    memcpy(row_values,&sudoku->cells[row * (size * size)], size * size);
+    memcpy(row_values,&sudoku->cells[row * (size * size)], sizeof(int) * size * size);
 
     return row_values;
 }
 
-int* getCol(sudoku *sudoku, unsigned col);
+int* getCol(sudoku *sudoku, unsigned col) {
+    assert(sudoku != NULL);
+    unsigned size = sudoku->size;
+    assert(col < size * size);
+    int* col_values = malloc(sizeof(int) * (size * size));
+
+    for(unsigned i = 0; i < size * size; ++i) {
+        col_values[i] = getCell(sudoku, i, col);
+    }
+    return col_values;
+}
 
 // Setter functions
 void setCell(sudoku *sudoku, unsigned row, unsigned col, int value) {
@@ -96,7 +106,7 @@ CheckResult check_list(int* values, unsigned size) {
     }
 
     for(unsigned i = 1; i <= listSize; ++i) {
-        if((valuesSeen & (1 << values[i])) == 0) {
+        if((valuesSeen & (1 << i)) == 0) {
             return CR_INCOMPLETE;
         }
     }
