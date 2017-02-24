@@ -39,44 +39,37 @@ int getCell(sudoku *sudoku, unsigned row, unsigned col) {
 
 }
 
-int* getSquare(sudoku *sudoku, unsigned square_row, unsigned square_col) {
+void getSquare(sudoku *sudoku, unsigned square_row, unsigned square_col, int* dest) {
     assert(sudoku != NULL);
     unsigned size = sudoku->size;
     assert(square_row < size);
     assert(square_col < size);
 
-    int *square_values = malloc(sizeof(int) * (size * size));
     for(unsigned i = 0; i < size; ++i) {
         for(unsigned j = 0; j < size; ++j) {
-            square_values[i*size + j] = getCell(sudoku, square_row * size + i,
+            dest[i*size + j] = getCell(sudoku, square_row * size + i,
                                                         square_col * size + j);
         }
     }
-
-    return square_values;
 }
 
-int* getRow(sudoku *sudoku, unsigned row) {
+void getRow(sudoku *sudoku, unsigned row, int* dest) {
     assert(sudoku != NULL);
     unsigned size = sudoku->size;
     assert(row < size * size);
 
-    int* row_values = malloc(sizeof(int) * (size * size));
-    memcpy(row_values,&sudoku->cells[row * (size * size)], sizeof(int) * size * size);
+    memcpy(dest, &sudoku->cells[row * (size * size)], sizeof(int) * size * size);
 
-    return row_values;
 }
 
-int* getCol(sudoku *sudoku, unsigned col) {
+void getCol(sudoku *sudoku, unsigned col, int* dest) {
     assert(sudoku != NULL);
     unsigned size = sudoku->size;
     assert(col < size * size);
-    int* col_values = malloc(sizeof(int) * (size * size));
 
     for(unsigned i = 0; i < size * size; ++i) {
-        col_values[i] = getCell(sudoku, i, col);
+        dest[i] = getCell(sudoku, i, col);
     }
-    return col_values;
 }
 
 // Setter functions

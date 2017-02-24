@@ -19,9 +19,9 @@ void freeSudoku(sudoku* sudoku);
 
 // Getter functions
 int getCell(sudoku *sudoku, unsigned row, unsigned col);
-int* getSquare(sudoku *sudoku, unsigned square_row, unsigned square_col);
-int* getRow(sudoku *sudoku, unsigned row);
-int* getCol(sudoku *sudoku, unsigned col);
+void getSquare(sudoku *sudoku, unsigned square_row, unsigned square_col, int* dest);
+void getRow(sudoku *sudoku, unsigned row, int* dest);
+void getCol(sudoku *sudoku, unsigned col, int* dest);
 
 // Setter functions
 void setCell(sudoku *sudoku, unsigned row, unsigned col, int value);
