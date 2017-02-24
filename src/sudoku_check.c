@@ -13,15 +13,15 @@ int main() {
     write_sudoku(stdout, givenSudoku);
 
     switch(check_sudoku(givenSudoku)) {
-        case CR_COMPLETE:
-            printf("%s\n", COMPLETE_STRING);
-            break;
-        case CR_INCOMPLETE:
-            printf("%s\n", INCOMPLETE_STRING);
-            break;
-        case CR_INVALID:
-            printf("%s\n", INVALID_STRING);
-            break;
+    case CR_COMPLETE:
+        printf("%s\n", COMPLETE_STRING);
+        break;
+    case CR_INCOMPLETE:
+        printf("%s\n", INCOMPLETE_STRING);
+        break;
+    case CR_INVALID:
+        printf("%s\n", INVALID_STRING);
+        break;
     }
 
     free_sudoku(givenSudoku);
