@@ -47,6 +47,8 @@ check_result check_sudoku(sudoku *givenSudoku) {
         case CR_INVALID:
             result = CR_INVALID;
             goto cleanup_and_return;
+        default:
+            ; // Do nothing
         }
     }
 
@@ -59,6 +61,8 @@ check_result check_sudoku(sudoku *givenSudoku) {
         case CR_INVALID:
             result = CR_INVALID;
             goto cleanup_and_return;
+        default:
+            ; // Do nothing
         }
     }
     for(unsigned i = 0; i < givenSudoku->size; ++i) {
@@ -71,6 +75,8 @@ check_result check_sudoku(sudoku *givenSudoku) {
             case CR_INVALID:
                 result = CR_INVALID;
                 goto cleanup_and_return;
+            default:
+                ; // Do nothing
             }
         }
     }
@@ -80,30 +86,7 @@ cleanup_and_return:
     return result;
 }
 
-/* Arrange the N elements of ARRAY in random order.
-   Only effective if N is much smaller than RAND_MAX;
-   if this may not be the case, use a better random
-   number generator.
-
-   Source: http://benpfaff.org/writings/clc/shuffle.html
-   */
-void shuffle(int *array, size_t n)
-{
-    if (n > 1) {
-        size_t i;
-	for (i = 0; i < n - 1; i++) {
-	  size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
-	  int t = array[j];
-	  array[j] = array[i];
-	  array[i] = t;
-	}
-    }
-}
-
-int* shuffled_positions = NULL;
-
-
-bool check_update(sudoku *s, position pos) {
+static bool check_update(sudoku *s, position pos) {
 
     const unsigned sec_size =s->size * s->size;
     int* buffer = malloc(sizeof(int) * sec_size);
@@ -130,16 +113,16 @@ bool check_update(sudoku *s, position pos) {
     return true;
 }
 
-void _solve_sudoku(solve_state *state, unsigned startPoint) {
+static void _solve_sudoku(solve_state *state, unsigned startPoint) {
     if(state->no_solutions < 2) {
         const unsigned no_cells = get_no_cells(state->current);
-        const unsigned posIdxMax = state->current->size * state->current->size;
+        const unsigned valMax = state->current->size * state->current->size;
 
         for(unsigned i = startPoint; i < no_cells; ++i) {
             if(state->current->cells[i] == 0) {
-                for(unsigned posIdx = 0; posIdx < posIdxMax; ++posIdx) {
+                for(unsigned val = 1; val <= valMax; ++val) {
                     position pos = index_to_position(state->current, i);
-                    state->current->cells[i] = shuffled_positions[posIdx];
+                    state->current->cells[i] = val;
                     if(check_update(state->current, pos)) {
                         _solve_sudoku(state, i + 1);
                     }
@@ -164,14 +147,6 @@ void _solve_sudoku(solve_state *state, unsigned startPoint) {
 
 solve_result solve_sudoku(sudoku *given_sudoku) {
     sudoku *sudokuCopy = copy_sudoku(given_sudoku);
-
-    shuffled_positions = malloc(sizeof(int) * given_sudoku->size * given_sudoku->size);
-
-    for(int i = 0; i < given_sudoku->size * given_sudoku->size; ++i) {
-        shuffled_positions[i] = i+1;
-    }
-
-    shuffle(shuffled_positions, given_sudoku->size * given_sudoku->size);
 
     solve_state state = (solve_state){0,sudokuCopy,NULL};
     _solve_sudoku(&state, 0);
