@@ -1,15 +1,18 @@
+#include "sudoku.h"
+
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
 
-#include "sudoku.h"
-
-typedef unsigned __int128 uint128_t;
+//Utility methods
+unsigned get_no_cells(sudoku *s) {
+    return s->size * s->size * s->size * s->size;
+}
 
 sudoku *create_sudoku(unsigned size) {
     sudoku *newSudoku = malloc(sizeof(sudoku));
     newSudoku->size = size;
-    newSudoku->cells = malloc(sizeof(int) * (size * size) * (size * size));
+    newSudoku->cells = malloc(sizeof(int) * get_no_cells(newSudoku));
 
     return newSudoku;
 }
@@ -17,7 +20,7 @@ sudoku *copy_sudoku(sudoku* srcSudoku) {
     assert(srcSudoku != NULL);
     unsigned size = srcSudoku->size;
     sudoku * newSudoku = create_sudoku(size);
-    memcpy(newSudoku->cells, srcSudoku->cells, sizeof(int) * (size * size) * (size * size));
+    memcpy(newSudoku->cells, srcSudoku->cells, sizeof(int) * get_no_cells(newSudoku));
 
     return newSudoku;
 }
@@ -82,70 +85,15 @@ void set_cell(sudoku *sudoku, unsigned row, unsigned col, int value) {
     sudoku->cells[row * (size * size) + col] = value;
 }
 
-// Checking function
-check_result check_list(int* values, unsigned size) {
-    unsigned listSize = size * size;
-    uint128_t valuesSeen = 0;
+// Position convertion
+position index_to_position(sudoku *s, unsigned index) {
+    int row = index / (s->size * s->size);
+    int col = index % (s->size * s->size);
 
-    for(unsigned i = 0; i < listSize; ++i) {
-        if(values[i] != 0) {
-            if((valuesSeen & (1 << values[i])) != 0) {
-                return CR_INVALID;
-            }
-            else {
-                valuesSeen |= 1 << values[i];
-            }
-        }
-    }
-    for(unsigned i = 1; i <= listSize; ++i) {
-        if((valuesSeen & (1 << i)) == 0) {
-            return CR_INCOMPLETE;
-        }
-    }
-    return CR_COMPLETE;
+    return (position){row,col};
 }
 
-check_result check_sudoku(sudoku *givenSudoku) {
-    check_result result = CR_COMPLETE;
-    int *valuesToCheck = malloc(sizeof(int) * givenSudoku->size * givenSudoku->size);
-    for(unsigned i = 0; i < givenSudoku->size * givenSudoku->size; ++i) {
-        get_row(givenSudoku, i, valuesToCheck);
-        switch(check_list(valuesToCheck, givenSudoku->size)) {
-        case CR_INCOMPLETE:
-            result = CR_INCOMPLETE;
-            break;
-        case CR_INVALID:
-            result = CR_INVALID;
-            goto cleanup_and_return;
-        }
-    }
-
-    for(unsigned i = 0; i < givenSudoku->size * givenSudoku->size; ++i) {
-        get_col(givenSudoku, i, valuesToCheck);
-        switch(check_list(valuesToCheck, givenSudoku->size)) {
-        case CR_INCOMPLETE:
-            result = CR_INCOMPLETE;
-            break;
-        case CR_INVALID:
-            result = CR_INVALID;
-            goto cleanup_and_return;
-        }
-    }
-    for(unsigned i = 0; i < givenSudoku->size; ++i) {
-        for(unsigned j = 0; j < givenSudoku->size; ++j) {
-            get_square(givenSudoku, i, j, valuesToCheck);
-            switch(check_list(valuesToCheck, givenSudoku->size)) {
-            case CR_INCOMPLETE:
-                result = CR_INCOMPLETE;
-                break;
-            case CR_INVALID:
-                result = CR_INVALID;
-                goto cleanup_and_return;
-            }
-        }
-    }
-
-cleanup_and_return:
-    free(valuesToCheck);
-    return result;
+unsigned position_to_index(sudoku *s, position pos) {
+    int width = s->size * s->size;
+    return pos.row * width + pos.col;
 }

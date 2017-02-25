@@ -17,6 +17,9 @@ typedef enum {
     CR_COMPLETE
 } check_result;
 
+// Utility functions
+unsigned get_no_cells(sudoku* sudoku);
+
 // Allocation handling
 sudoku *create_sudoku(unsigned size);
 sudoku *copy_sudoku(sudoku* sudoku);
@@ -31,8 +34,7 @@ void get_col(sudoku *sudoku, unsigned col, int* dest);
 // Setter functions
 void set_cell(sudoku *sudoku, unsigned row, unsigned col, int value);
 
-// Checking function
-check_result check_list(int *values, unsigned size);
+position index_to_position(sudoku *s, unsigned index);
+unsigned position_to_index(sudoku *s, position pos);
 
-check_result check_sudoku(sudoku *s);
 #endif
