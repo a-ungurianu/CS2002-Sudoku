@@ -26,6 +26,10 @@ ${OBJ_DIR}/sudoku_solver.o: ${SRC_DIR}/sudoku_solver.c ${DEPS}
 	-mkdir -p out
 	${CC} ${CFLAGS} $< -o $@
 
+${OBJ_DIR}/test_table_stuff.o: ${SRC_DIR}/test_table_stuff.c ${DEPS}
+	-mkdir -p out
+	${CC} ${CFLAGS} $< -o $@
+
 sudoku_check: ${OBJ_DIR}/sudoku_check.o ${OBJ_DIR}/sudoku_io.o ${OBJ_DIR}/sudoku.o ${OBJ_DIR}/sudoku_solve.o
 	${CC} ${LDFLAGS} $^ -o $@
 
@@ -35,7 +39,8 @@ sudoku_solver: ${OBJ_DIR}/sudoku_solver.o ${OBJ_DIR}/sudoku_io.o ${OBJ_DIR}/sudo
 sudoku_advanced: ${OBJ_DIR}/sudoku_solver.o ${OBJ_DIR}/sudoku_io.o ${OBJ_DIR}/sudoku.o ${OBJ_DIR}/sudoku_solve.o
 	${CC} ${LDFLAGS} $^ -o $@
 
-
+test_table_stuff: ${OBJ_DIR}/test_table_stuff.o ${OBJ_DIR}/sudoku_io.o ${OBJ_DIR}/sudoku.o
+	${CC} ${LDFLAGS} $^ -o $@
 test:
 	stacscheck /cs/studres/CS2002/Practicals/Practical3-C2/stacscheck/
 
