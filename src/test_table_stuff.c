@@ -35,12 +35,12 @@ typedef struct {
 } constraint_table;
 
 
-void free_column_data(column_data* data) {
+static void free_column_data(column_data* data) {
     free(data->name);
     free(data);
 }
 
-void free_column(data_object* header) {
+static void free_column(data_object* header) {
     free_column_data(header->data.columnData);
     data_object *current = header->down;
     while(current != header) {
@@ -51,7 +51,7 @@ void free_column(data_object* header) {
     free(header);
 }
 
-void free_constraint_table(constraint_table *table) {
+static void free_constraint_table(constraint_table *table) {
     data_object *current = table->head->right;
     while(current != table->head) {
         current = current->right;
@@ -61,7 +61,7 @@ void free_constraint_table(constraint_table *table) {
     free(table);
 }
 
-data_object *add_column_header(constraint_table *table, char *name) {
+static data_object *add_column_header(constraint_table *table, char *name) {
     column_data* colData = malloc(sizeof(column_data));
     colData->size = 0;
     colData->name = name;
@@ -78,7 +78,7 @@ data_object *add_column_header(constraint_table *table, char *name) {
     return dataObj;
 }
 
-data_object *add_constraint_to_column(data_object *columnHeader, unsigned row, unsigned col, unsigned val) {
+static data_object *add_constraint_to_column(data_object *columnHeader, unsigned row, unsigned col, unsigned val) {
     data_object* dataObj = malloc(sizeof(data_object));
     dataObj->up = columnHeader->up;
     columnHeader->up->down = dataObj;
@@ -95,7 +95,7 @@ data_object *add_constraint_to_column(data_object *columnHeader, unsigned row, u
     return dataObj;
 }
 
-void removeZeroColumns(constraint_table *table) {
+static void removeZeroColumns(constraint_table *table) {
     data_object *current = table->head->right;
 
     while(current != table->head) {
@@ -113,7 +113,7 @@ void removeZeroColumns(constraint_table *table) {
 
 typedef unsigned __int128 uint128_t;
 
-check_result check_list(int* values, unsigned size) {
+static check_result check_list(int* values, unsigned size) {
     unsigned listSize = size * size;
     uint128_t valuesSeenSet = 0; // Using this as a bit set.
 
@@ -157,7 +157,7 @@ static bool check_update(sudoku *s, position pos) {
     return true;
 }
 
-constraint_table *generate_table(sudoku *s) {
+static constraint_table *generate_table(sudoku *s) {
     constraint_table *table = malloc(sizeof(constraint_table));
     table->head = malloc(sizeof(data_object));
     table->head->left = table->head;
@@ -211,13 +211,15 @@ constraint_table *generate_table(sudoku *s) {
             }
         }
     }
-
+    unsigned no_zeros = 0, no_constraints = 0;
     for(unsigned row = 0; row < sectionSize; ++row) {
         for(unsigned col = 0; col < sectionSize; ++col) {
             if(get_cell(s, row, col) == 0) {
+                no_zeros ++;
                 for(unsigned val = 0; val < sectionSize; ++val) {
                     set_cell(s, row, col, val+1);
                     if(check_update(s, (position){row,col})) {
+                        no_constraints++;
                         data_object *rowColumnHeader = rowColumnHeaders[row * sectionSize + col];
                         data_object *rowNumberHeader = rowNumberHeaders[row * sectionSize + val];
                         data_object *colNumberHeader = columnNumberHeaders[col * sectionSize + val];
@@ -246,6 +248,8 @@ constraint_table *generate_table(sudoku *s) {
         }
     }
 
+    printf("No. zeros: %d\n", no_zeros);
+    printf("No. constraints: %d\n", no_constraints);
     removeZeroColumns(table);
 
     free(rowColumnHeaders);
@@ -255,7 +259,7 @@ constraint_table *generate_table(sudoku *s) {
     return table;
 }
 
-void write_table(constraint_table* table, FILE *output) {
+static void write_table(constraint_table* table, FILE *output) {
     data_object * current = table->head;
 
     while(current->right != table->head) {
@@ -272,9 +276,9 @@ void write_table(constraint_table* table, FILE *output) {
     }
 }
 
-data_object ** solutionObjects;
+static data_object ** solutionObjects;
 
-data_object *get_smallest_column(constraint_table *table) {
+static data_object *get_smallest_column(constraint_table *table) {
     data_object * current = table->head->right;
 
     data_object *smallestColumn = NULL;
@@ -290,7 +294,7 @@ data_object *get_smallest_column(constraint_table *table) {
     return smallestColumn;
 }
 
-void cover_column(data_object *c) {
+static void cover_column(data_object *c) {
     c->right->left = c->left;
     c->left->right = c->right;
 
@@ -312,13 +316,13 @@ void DEBUG_print_hor_list_rightwards(data_object *source) {
 
     do {
         cell_data *cellData = current->data.cellData;
-        printf(", (R%d C%d #%d) ", cellData->row + 1, cellData->col + 1, cellData->value + 1);
+        printf("(R%d C%d #%d), ", cellData->row + 1, cellData->col + 1, cellData->value + 1);
         current = current->right;
     } while ( current != source );
     printf("\n");
 }
 
-void uncover_column(data_object *c) {
+static void uncover_column(data_object *c) {
     data_object* i = c->up;
     while(i != c) {
         data_object* j = i->left;
@@ -328,26 +332,51 @@ void uncover_column(data_object *c) {
             j->up->down = j;
             j = j->left;
         }
-        i = c->up;
+        i = i->up;
     }
     c->right->left = c;
     c->left->right = c;
 }
 
-void solve_table(constraint_table *table, unsigned k) {
+
+typedef struct {
+    int no_solutions;
+    sudoku *current;
+    sudoku *solution;
+} solve_state;
+
+static sudoku * fill_in_sudoku(sudoku *s, data_object** thingsToFill, unsigned noThingsToFill) {
+    sudoku *solved = copy_sudoku(s);
+    printf("No. spaces: %d\n", noThingsToFill);
+
+    for(unsigned i = 0; i < noThingsToFill; ++i) {
+        cell_data *cellData = thingsToFill[i]->data.cellData;
+        set_cell(solved, cellData->row, cellData->col, cellData->value + 1);
+    }
+
+    return solved;
+}
+
+static void solve_table(constraint_table *table, solve_state* state, unsigned k) {
     data_object* h = table->head;
 
     if(h->right == h) {
         // We have a solution
         // Yay
-        for(unsigned i = 0; i < k; ++i) {
-            cell_data *cellData = solutionObjects[k]->data.cellData;
-            printf("(R%d C%d #%d), ", cellData->row + 1, cellData->col + 1, cellData->value + 1);
+        state->no_solutions++;
+        if(state->no_solutions == 1) {
+            assert(state->solution == NULL);
+            state->solution = fill_in_sudoku(state->current, solutionObjects, k);
+        }
+        else {
+            assert(state->solution != NULL);
+            free_sudoku(state->solution);
+            state->solution = fill_in_sudoku(state->current, solutionObjects, k);
         }
     }
     else {
         // Choose a column header.
-        data_object* c = h->right;
+        data_object* c = get_smallest_column(table);
 
         // Cover column
         cover_column(c);
@@ -355,15 +384,14 @@ void solve_table(constraint_table *table, unsigned k) {
 
         while(r != c) {
             solutionObjects[k] = r;
-            printf("Level %d: ", k);
-            DEBUG_print_hor_list_rightwards(r);
+            
             data_object* j = r->right;
             while(j != r) {
                 // Cover column for currentRowObj
                 cover_column(j->column);
                 j = j->right;
             }
-            solve_table(table, k + 1);
+            solve_table(table, state, k + 1);
             r = solutionObjects[k];
             assert(c == r->column);
             c = r->column;
@@ -385,14 +413,29 @@ void solve_table(constraint_table *table, unsigned k) {
 int main() {
     sudoku * input = read_sudoku(stdin);
 
-    checkValuesBuffer = malloc(input->size * input->size);
-    solutionObjects = malloc(sizeof(data_object*) * 1000); // Compute the number by counting the number of zeros.
+    checkValuesBuffer = malloc(sizeof(int) * input->size * input->size);
+    solutionObjects = malloc(sizeof(data_object*) * 10000); // Compute the number by counting the number of zeros.
 
     constraint_table *table = generate_table(input);
     write_table(table, stdout);
 
-    solve_table(table, 0);
+    solve_state state = (solve_state){0,input,NULL};
+    solve_table(table, &state, 0);
 
+    switch (state.no_solutions) {
+        case 0:
+            printf("UNSOLVABLE\n");
+            break;
+        case 1:
+            // write_sudoku(stdout, state.solution);
+            break;
+        default:
+            printf("MULTIPLE\n");
+            break;
+    }
+
+    free(solutionObjects);
+    free(checkValuesBuffer);
     free_sudoku(input);
     free_constraint_table(table);
     return 0;
