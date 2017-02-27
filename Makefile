@@ -1,6 +1,6 @@
 CC = clang
-CFLAGS = -c -std=c99 -Wall -Wextra -g
-LDFLAGS = -Wall -Wextra -lm -g
+CFLAGS = -c -std=c99 -Wall -Wextra -Ofast
+LDFLAGS = -Wall -Wextra -lm -Ofast
 OBJ_DIR = out
 SRC_DIR = src
 
@@ -36,13 +36,13 @@ sudoku_check: ${OBJ_DIR}/sudoku_check.o ${OBJ_DIR}/sudoku_io.o ${OBJ_DIR}/sudoku
 sudoku_solver: ${OBJ_DIR}/sudoku_solver.o ${OBJ_DIR}/sudoku_io.o ${OBJ_DIR}/sudoku.o ${OBJ_DIR}/sudoku_solve.o
 	${CC} ${LDFLAGS} $^ -o $@
 
-sudoku_advanced: ${OBJ_DIR}/sudoku_solver.o ${OBJ_DIR}/sudoku_io.o ${OBJ_DIR}/sudoku.o ${OBJ_DIR}/sudoku_solve.o
-	${CC} ${LDFLAGS} $^ -o $@
-
-test_table_stuff: ${OBJ_DIR}/test_table_stuff.o ${OBJ_DIR}/sudoku_io.o ${OBJ_DIR}/sudoku.o
+sudoku_advanced: ${OBJ_DIR}/test_table_stuff.o ${OBJ_DIR}/sudoku_io.o ${OBJ_DIR}/sudoku.o
 	${CC} ${LDFLAGS} $^ -o $@
 test:
 	stacscheck /cs/studres/CS2002/Practicals/Practical3-C2/stacscheck/
+
+test_local:
+	stacscheck stacscheck/
 
 clean:
 	-rm out/*
