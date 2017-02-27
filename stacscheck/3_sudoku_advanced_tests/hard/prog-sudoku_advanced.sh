@@ -1,3 +1,3 @@
 #!/bin/bash
 
-ulimit -t 30; ./sudoku_advanced
+ulimit -t 300; ./sudoku_advanced
