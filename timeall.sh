@@ -1,6 +1,7 @@
 #! /usr/bin/env bash
 
-for f in $(find stacscheck/ -iname '*.in' | grep '[23]_')
+for f in $(find $1 -iname '*.in' | sort)
 do
-    time -f "%U" ./sudoku_advanced < $f
+    echo -n "$(basename $f): "
+    /usr/bin/time -f "%e s" ./sudoku_advanced < $f > /dev/null
 done
