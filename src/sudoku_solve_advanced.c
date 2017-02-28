@@ -1,22 +1,31 @@
 #include "sudoku.h"
 #include "sudoku_io.h"
+#include "sudoku_solve.h"
+#include "sudoku_checking.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <stdbool.h>
 
-typedef struct {
+#ifndef DEBUG
+    #define DEBUG 0
+#endif
+
+#define debug_print(fmt, ...) \
+            do { if (DEBUG) fprintf(stderr,fmt, __VA_ARGS__); } while (0)
+
+typedef struct column_data {
     unsigned size;
     char* name;
 } column_data;
 
-typedef struct {
+typedef struct cell_data {
     unsigned row;
     unsigned col;
     unsigned value;
 } cell_data;
 
-typedef union {
+typedef union cell_metadata {
     column_data *columnData;
     cell_data *cellData;
 } cell_metadata;
@@ -30,10 +39,29 @@ typedef struct data_object {
     cell_metadata data;
 } data_object;
 
-typedef struct {
+typedef struct constraint_table {
     data_object *head;
 } constraint_table;
 
+typedef struct solve_state {
+    int no_solutions;
+    sudoku *current;
+    sudoku *solution;
+} solve_state;
+
+static unsigned no_empty_spaces(const sudoku *s) {
+    const unsigned sectionSize = s->size * s->size;
+
+    unsigned noEmptySpaces = 0;
+
+    for(unsigned i = 0; i < sectionSize * sectionSize; ++i) {
+        if(s->cells[i] == 0) {
+            noEmptySpaces++;
+        }
+    }
+
+    return noEmptySpaces;
+}
 
 static void free_column_data(column_data* data) {
     free(data->name);
@@ -63,9 +91,14 @@ static void free_constraint_table(constraint_table *table) {
 
 static data_object *add_column_header(constraint_table *table, char *name) {
     column_data* colData = malloc(sizeof(column_data));
+    assert(colData != NULL);
+
     colData->size = 0;
     colData->name = name;
+
     data_object* dataObj = malloc(sizeof(data_object));
+    assert(dataObj != NULL);
+
     dataObj->data.columnData = colData;
     dataObj->up = dataObj;
     dataObj->down = dataObj;
@@ -80,12 +113,17 @@ static data_object *add_column_header(constraint_table *table, char *name) {
 
 static data_object *add_constraint_to_column(data_object *columnHeader, unsigned row, unsigned col, unsigned val) {
     data_object* dataObj = malloc(sizeof(data_object));
+    assert(dataObj != NULL);
+
     dataObj->up = columnHeader->up;
     columnHeader->up->down = dataObj;
     columnHeader->up = dataObj;
     dataObj->down = columnHeader;
     dataObj->column = columnHeader;
+
     cell_data *cellData = malloc(sizeof(cell_data));
+    assert(cellData != NULL);
+
     cellData->row = row;
     cellData->col = col;
     cellData->value = val;
@@ -95,7 +133,28 @@ static data_object *add_constraint_to_column(data_object *columnHeader, unsigned
     return dataObj;
 }
 
-static void removeZeroColumns(constraint_table *table) {
+static bool check_update(const sudoku *s, position pos) {
+    int buffer[s->size * s->size];
+
+    get_row(s, pos.row, buffer);
+    if(check_list(buffer, s->size) == CR_INVALID) {
+        return false;
+    }
+
+    get_col(s, pos.col, buffer);
+    if(check_list(buffer, s->size) == CR_INVALID) {
+        return false;
+    }
+
+    get_square(s, pos.row / s->size, pos.col / s->size, buffer);
+    if(check_list(buffer, s->size) == CR_INVALID) {
+        return false;
+    }
+
+    return true;
+}
+
+static void remove_zero_columns(constraint_table *table) {
     data_object *current = table->head->right;
 
     while(current != table->head) {
@@ -111,66 +170,26 @@ static void removeZeroColumns(constraint_table *table) {
     }
 }
 
-typedef unsigned __int128 uint128_t;
-
-static check_result check_list(int* values, unsigned size) {
-    unsigned listSize = size * size;
-    uint128_t valuesSeenSet = 0; // Using this as a bit set.
-
-    for(unsigned i = 0; i < listSize; ++i) {
-        if(values[i] != 0) {
-            if((valuesSeenSet & (1 << values[i])) != 0) {
-                return CR_INVALID;
-            }
-            else {
-                valuesSeenSet |= 1 << values[i];
-            }
-        }
-    }
-    for(unsigned i = 1; i <= listSize; ++i) {
-        if((valuesSeenSet & (1 << i)) == 0) {
-            return CR_INCOMPLETE;
-        }
-    }
-    return CR_COMPLETE;
-}
-
-static int* checkValuesBuffer;
-
-static bool check_update(sudoku *s, position pos) {
-
-    get_row(s, pos.row, checkValuesBuffer);
-    if(check_list(checkValuesBuffer, s->size) == CR_INVALID) {
-        return false;
-    }
-
-    get_col(s, pos.col, checkValuesBuffer);
-    if(check_list(checkValuesBuffer, s->size) == CR_INVALID) {
-        return false;
-    }
-
-    get_square(s, pos.row / s->size, pos.col / s->size, checkValuesBuffer);
-    if(check_list(checkValuesBuffer, s->size) == CR_INVALID) {
-        return false;
-    }
-
-    return true;
-}
-
 static constraint_table *generate_table(sudoku *s) {
     constraint_table *table = malloc(sizeof(constraint_table));
+    assert(table != NULL);
+
     table->head = malloc(sizeof(data_object));
+    assert(table->head != NULL);
+
     table->head->left = table->head;
     table->head->right = table->head;
 
     unsigned sectionSize = s->size * s->size;
 
     data_object** rowColumnHeaders = malloc(sizeof(data_object*) * sectionSize * sectionSize);
+    assert(rowColumnHeaders != NULL);
 
     //Add Row-Column constraint columns
     for(unsigned r = 0; r < sectionSize; ++r) {
         for(unsigned c = 0; c < sectionSize; ++c) {
             char * name = malloc(sizeof(char) * 20);
+            assert(name != NULL);
             sprintf(name, "R%dC%d", r + 1, c + 1);
             rowColumnHeaders[r * sectionSize + c] = add_column_header(table, name);
         }
@@ -178,48 +197,52 @@ static constraint_table *generate_table(sudoku *s) {
 
 
     data_object** rowNumberHeaders = malloc(sizeof(data_object*) * sectionSize * sectionSize);
+    assert(rowNumberHeaders != NULL);
 
     //Add Row-Number constraint columns
     for(unsigned r = 0; r < sectionSize; ++r) {
         for(unsigned val = 0; val < sectionSize; ++val) {
             char * name = malloc(sizeof(char) * 20);
+            assert(name != NULL);
             sprintf(name, "R%d#%d", r + 1, val + 1);
             rowNumberHeaders[r * sectionSize + val] = add_column_header(table, name);
         }
     }
 
     data_object** columnNumberHeaders = malloc(sizeof(data_object*) * sectionSize * sectionSize);
+    assert(columnNumberHeaders != NULL);
 
     //Add Column-Number constraint columns
     for(unsigned c = 0; c < sectionSize; ++c) {
         for(unsigned val = 0; val < sectionSize; ++val) {
             char * name = malloc(sizeof(char) * 20);
+            assert(name != NULL);
             sprintf(name, "C%d#%d", c + 1, val + 1);
             columnNumberHeaders[c * sectionSize + val] = add_column_header(table, name);
         }
     }
 
     data_object** boxNumberHeaders = malloc(sizeof(data_object*) * sectionSize * sectionSize);
+    assert(boxNumberHeaders != NULL);
 
     //Add Box-Number constraint columns
     for(unsigned r = 0; r < s->size; ++r) {
         for(unsigned c = 0; c < s->size; ++c) {
             for(unsigned val = 0; val < sectionSize; ++val) {
                 char * name = malloc(sizeof(char) * 20);
+                assert(name != NULL);
                 sprintf(name, "BR%dC%d#%d", r + 1, c + 1, val + 1);
                 boxNumberHeaders[(r * s->size + c) * sectionSize + val] = add_column_header(table, name);
             }
         }
     }
-    unsigned no_zeros = 0, no_constraints = 0;
+
     for(unsigned row = 0; row < sectionSize; ++row) {
         for(unsigned col = 0; col < sectionSize; ++col) {
             if(get_cell(s, row, col) == 0) {
-                no_zeros ++;
                 for(unsigned val = 0; val < sectionSize; ++val) {
                     set_cell(s, row, col, val+1);
                     if(check_update(s, (position){row,col})) {
-                        no_constraints++;
                         data_object *rowColumnHeader = rowColumnHeaders[row * sectionSize + col];
                         data_object *rowNumberHeader = rowNumberHeaders[row * sectionSize + val];
                         data_object *colNumberHeader = columnNumberHeaders[col * sectionSize + val];
@@ -248,9 +271,7 @@ static constraint_table *generate_table(sudoku *s) {
         }
     }
 
-    printf("No. zeros: %d\n", no_zeros);
-    printf("No. constraints: %d\n", no_constraints);
-    removeZeroColumns(table);
+    remove_zero_columns(table);
 
     free(rowColumnHeaders);
     free(rowNumberHeaders);
@@ -276,7 +297,7 @@ static void write_table(constraint_table* table, FILE *output) {
     }
 }
 
-static data_object ** solutionObjects;
+static data_object **solutionObjects;
 
 static data_object *get_smallest_column(constraint_table *table) {
     data_object * current = table->head->right;
@@ -294,60 +315,41 @@ static data_object *get_smallest_column(constraint_table *table) {
     return smallestColumn;
 }
 
-static void cover_column(data_object *c) {
-    c->right->left = c->left;
-    c->left->right = c->right;
+static void cover_column(data_object *column) {
+    column->right->left = column->left;
+    column->left->right = column->right;
 
-    data_object* i = c->down;
-    while(i != c) {
-        data_object* j = i->right;
-        while(j != i) {
-            j->down->up = j->up;
-            j->up->down = j->down;
-            j->column->data.columnData->size--;
-            j = j->right;
+    data_object* rowToCover = column->down;
+    while(rowToCover != column) {
+        data_object* attachedCell = rowToCover->right;
+        while(attachedCell != rowToCover) {
+            attachedCell->down->up = attachedCell->up;
+            attachedCell->up->down = attachedCell->down;
+            attachedCell->column->data.columnData->size--;
+            attachedCell = attachedCell->right;
         }
-        i = i->down;
+        rowToCover = rowToCover->down;
     }
 }
 
-void DEBUG_print_hor_list_rightwards(data_object *source) {
-    data_object *current = source;
-
-    do {
-        cell_data *cellData = current->data.cellData;
-        printf("(R%d C%d #%d), ", cellData->row + 1, cellData->col + 1, cellData->value + 1);
-        current = current->right;
-    } while ( current != source );
-    printf("\n");
-}
-
-static void uncover_column(data_object *c) {
-    data_object* i = c->up;
-    while(i != c) {
-        data_object* j = i->left;
-        while(j != i) {
-            j->column->data.columnData->size ++;
-            j->down->up = j;
-            j->up->down = j;
-            j = j->left;
+static void uncover_column(data_object *column) {
+    data_object* rowToUncover = column->up;
+    while(rowToUncover != column) {
+        data_object* attachedCell = rowToUncover->left;
+        while(attachedCell != rowToUncover) {
+            attachedCell->column->data.columnData->size ++;
+            attachedCell->down->up = attachedCell;
+            attachedCell->up->down = attachedCell;
+            attachedCell = attachedCell->left;
         }
-        i = i->up;
+        rowToUncover = rowToUncover->up;
     }
-    c->right->left = c;
-    c->left->right = c;
+    column->right->left = column;
+    column->left->right = column;
 }
 
-
-typedef struct {
-    int no_solutions;
-    sudoku *current;
-    sudoku *solution;
-} solve_state;
-
-static sudoku * fill_in_sudoku(sudoku *s, data_object** thingsToFill, unsigned noThingsToFill) {
+static sudoku * fill_in_sudoku(const sudoku *s, data_object** thingsToFill, unsigned noThingsToFill) {
     sudoku *solved = copy_sudoku(s);
-    printf("No. spaces: %d\n", noThingsToFill);
 
     for(unsigned i = 0; i < noThingsToFill; ++i) {
         cell_data *cellData = thingsToFill[i]->data.cellData;
@@ -357,86 +359,86 @@ static sudoku * fill_in_sudoku(sudoku *s, data_object** thingsToFill, unsigned n
     return solved;
 }
 
-static void solve_table(constraint_table *table, solve_state* state, unsigned k) {
-    data_object* h = table->head;
+static void solve_table(constraint_table *table, solve_state* state, unsigned depth) {
+    if(state->no_solutions < 2) {
+        data_object* head = table->head;
 
-    if(h->right == h) {
-        // We have a solution
-        // Yay
-        state->no_solutions++;
-        if(state->no_solutions == 1) {
-            assert(state->solution == NULL);
-            state->solution = fill_in_sudoku(state->current, solutionObjects, k);
+        if(head->right == head) {
+            state->no_solutions++;
+            if(state->no_solutions == 1) {
+                assert(state->solution == NULL);
+                state->solution = fill_in_sudoku(state->current, solutionObjects, depth);
+            }
+            else {
+                assert(state->solution != NULL);
+                free_sudoku(state->solution);
+                state->solution = fill_in_sudoku(state->current, solutionObjects, depth);
+            }
         }
         else {
-            assert(state->solution != NULL);
-            free_sudoku(state->solution);
-            state->solution = fill_in_sudoku(state->current, solutionObjects, k);
-        }
-    }
-    else {
-        // Choose a column header.
-        data_object* c = get_smallest_column(table);
+            // Choose a column header.
+            data_object* smallestColumn = get_smallest_column(table);
 
-        // Cover column
-        cover_column(c);
-        data_object* r = c->down;
+            // Cover column
+            cover_column(smallestColumn);
+            data_object* rowToCover = smallestColumn->down;
 
-        while(r != c) {
-            solutionObjects[k] = r;
-            
-            data_object* j = r->right;
-            while(j != r) {
-                // Cover column for currentRowObj
-                cover_column(j->column);
-                j = j->right;
+            while(rowToCover != smallestColumn) {
+                solutionObjects[depth] = rowToCover;
+
+                data_object* attachedCell = rowToCover->right;
+                while(attachedCell != rowToCover) {
+                    // Cover column for attachedCell
+                    cover_column(attachedCell->column);
+                    attachedCell = attachedCell->right;
+                }
+                solve_table(table, state, depth + 1);
+                rowToCover = solutionObjects[depth];
+
+                attachedCell = rowToCover->left;
+                while(attachedCell != rowToCover) {
+                    // Uncover column for attachedCell
+                    uncover_column(attachedCell->column);
+                    attachedCell = attachedCell->left;
+                }
+                rowToCover = rowToCover->down;
             }
-            solve_table(table, state, k + 1);
-            r = solutionObjects[k];
-            assert(c == r->column);
-            c = r->column;
-
-            j = r->left;
-            while(j != r) {
-                // Uncover column for currentRowObj
-                uncover_column(j->column);
-                j = j->left;
-            }
-            r = r->down;
+            // Uncover column
+            uncover_column(smallestColumn);
         }
-        // Uncover column
-        uncover_column(c);
     }
 }
 
+solve_result solve_sudoku(const sudoku *input) {
 
-int main() {
-    sudoku * input = read_sudoku(stdin);
+    sudoku *toSolve = copy_sudoku(input);
 
-    checkValuesBuffer = malloc(sizeof(int) * input->size * input->size);
-    solutionObjects = malloc(sizeof(data_object*) * 10000); // Compute the number by counting the number of zeros.
+    solutionObjects = malloc(sizeof(data_object*) * no_empty_spaces(input)); // Compute the number by counting the number of zeros.
+    assert(solutionObjects);
 
-    constraint_table *table = generate_table(input);
-    write_table(table, stdout);
+    constraint_table *table = generate_table(toSolve);
 
-    solve_state state = (solve_state){0,input,NULL};
+    solve_state state = (solve_state){0,toSolve,NULL};
     solve_table(table, &state, 0);
+
+    solve_result result;
 
     switch (state.no_solutions) {
         case 0:
-            printf("UNSOLVABLE\n");
+            result.status = SR_UNSOLVABLE;
             break;
         case 1:
-            // write_sudoku(stdout, state.solution);
+            result.status = SR_SOLVED;
+            result.solution = state.solution;
             break;
         default:
-            printf("MULTIPLE\n");
+            result.status = SR_MULTIPLE;
+            result.solution = state.solution;
             break;
     }
 
     free(solutionObjects);
-    free(checkValuesBuffer);
-    free_sudoku(input);
     free_constraint_table(table);
-    return 0;
+
+    return result;
 }
