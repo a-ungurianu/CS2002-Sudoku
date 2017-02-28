@@ -3,7 +3,6 @@
 
 int main() {
     sudoku * givenSudoku = read_sudoku(stdin);
-
     switch (check_sudoku(givenSudoku)) {
         case CR_INVALID:
             printf("%s\n", "UNSOLVABLE");

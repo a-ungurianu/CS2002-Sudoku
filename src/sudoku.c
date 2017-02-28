@@ -11,8 +11,11 @@ unsigned get_no_cells(sudoku *s) {
 
 sudoku *create_sudoku(unsigned size) {
     sudoku *newSudoku = malloc(sizeof(sudoku));
+    assert(newSudoku != NULL);
+
     newSudoku->size = size;
     newSudoku->cells = malloc(sizeof(int) * get_no_cells(newSudoku));
+    assert(newSudoku->cells != NULL);
 
     return newSudoku;
 }
