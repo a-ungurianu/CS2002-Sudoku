@@ -96,30 +96,32 @@ static data_object *add_column_header(constraint_table *table, char *name) {
     colData->size = 0;
     colData->name = name;
 
-    data_object* dataObj = malloc(sizeof(data_object));
-    assert(dataObj != NULL);
+    data_object* newColumnHeader = malloc(sizeof(data_object));
+    assert(newColumnHeader != NULL);
 
-    dataObj->data.columnData = colData;
-    dataObj->up = dataObj;
-    dataObj->down = dataObj;
-    dataObj->left = table->head->left;
-    dataObj->column = dataObj;
-    table->head->left->right = dataObj;
-    table->head->left = dataObj;
-    dataObj->right = table->head;
+    newColumnHeader->data.columnData = colData;
+    newColumnHeader->column = newColumnHeader;
+    
+    newColumnHeader->up = newColumnHeader;
+    newColumnHeader->down = newColumnHeader;
+    newColumnHeader->left = table->head->left;
+    table->head->left->right = newColumnHeader;
+    table->head->left = newColumnHeader;
+    newColumnHeader->right = table->head;
 
-    return dataObj;
+    return newColumnHeader;
 }
 
 static data_object *add_constraint_to_column(data_object *columnHeader, unsigned row, unsigned col, unsigned val) {
     data_object* dataObj = malloc(sizeof(data_object));
     assert(dataObj != NULL);
 
+    dataObj->column = columnHeader;
+
     dataObj->up = columnHeader->up;
+    dataObj->down = columnHeader;
     columnHeader->up->down = dataObj;
     columnHeader->up = dataObj;
-    dataObj->down = columnHeader;
-    dataObj->column = columnHeader;
 
     cell_data *cellData = malloc(sizeof(cell_data));
     assert(cellData != NULL);
