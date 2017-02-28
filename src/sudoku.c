@@ -5,7 +5,7 @@
 #include <string.h>
 
 //Utility methods
-unsigned get_no_cells(sudoku *s) {
+unsigned get_no_cells(const sudoku *s) {
     return s->size * s->size * s->size * s->size;
 }
 
@@ -19,7 +19,7 @@ sudoku *create_sudoku(unsigned size) {
 
     return newSudoku;
 }
-sudoku *copy_sudoku(sudoku* srcSudoku) {
+sudoku *copy_sudoku(const sudoku* srcSudoku) {
     assert(srcSudoku != NULL);
     unsigned size = srcSudoku->size;
     sudoku * newSudoku = create_sudoku(size);
@@ -35,7 +35,7 @@ void free_sudoku(sudoku* sudoku) {
 }
 
 // Getter functions
-int get_cell(sudoku *sudoku, unsigned row, unsigned col) {
+int get_cell(const sudoku *sudoku, unsigned row, unsigned col) {
     assert(sudoku != NULL);
     unsigned size = sudoku->size;
     assert(row < size * size);
@@ -45,7 +45,7 @@ int get_cell(sudoku *sudoku, unsigned row, unsigned col) {
 
 }
 
-void get_square(sudoku *sudoku, unsigned squareRow, unsigned squareCol, int* dest) {
+void get_square(const sudoku *sudoku, unsigned squareRow, unsigned squareCol, int* dest) {
     assert(sudoku != NULL);
     unsigned size = sudoku->size;
     assert(squareRow < size);
@@ -54,12 +54,12 @@ void get_square(sudoku *sudoku, unsigned squareRow, unsigned squareCol, int* des
     for(unsigned i = 0; i < size; ++i) {
         for(unsigned j = 0; j < size; ++j) {
             dest[i*size + j] = get_cell(sudoku, squareRow * size + i,
-                                       squareCol * size + j);
+                                                squareCol * size + j);
         }
     }
 }
 
-void get_row(sudoku *sudoku, unsigned row, int* dest) {
+void get_row(const sudoku *sudoku, unsigned row, int* dest) {
     assert(sudoku != NULL);
     unsigned size = sudoku->size;
     assert(row < size * size);
@@ -68,7 +68,7 @@ void get_row(sudoku *sudoku, unsigned row, int* dest) {
 
 }
 
-void get_col(sudoku *sudoku, unsigned col, int* dest) {
+void get_col(const sudoku *sudoku, unsigned col, int* dest) {
     assert(sudoku != NULL);
     unsigned size = sudoku->size;
     assert(col < size * size);
@@ -89,14 +89,14 @@ void set_cell(sudoku *sudoku, unsigned row, unsigned col, int value) {
 }
 
 // Position convertion
-position index_to_position(sudoku *s, unsigned index) {
+position index_to_position(const sudoku *s, unsigned index) {
     int row = index / (s->size * s->size);
     int col = index % (s->size * s->size);
 
     return (position){row,col};
 }
 
-unsigned position_to_index(sudoku *s, position pos) {
+unsigned position_to_index(const sudoku *s, position pos) {
     int width = s->size * s->size;
     return pos.row * width + pos.col;
 }

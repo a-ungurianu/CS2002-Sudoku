@@ -1,6 +1,5 @@
 #include "sudoku_io.h"
 #include <assert.h>
-#include <math.h>
 
 // I/O
 sudoku *read_sudoku(FILE *inputFile) {
@@ -19,7 +18,7 @@ sudoku *read_sudoku(FILE *inputFile) {
     return s;
 }
 
-void write_sudoku(FILE *outputFile, sudoku *sudoku) {
+void write_sudoku(FILE *outputFile, const sudoku *sudoku) {
     assert(sudoku != NULL);
 
     unsigned size = sudoku->size;

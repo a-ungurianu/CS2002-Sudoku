@@ -16,11 +16,7 @@ typedef struct {
     sudoku *solution;
 } solve_result;
 
-// Checking functions
-check_result check_list(int *values, unsigned size);
-check_result check_sudoku(sudoku *s);
-
 // Solve function
-solve_result solve_sudoku(sudoku *givenSudoku);
+solve_result solve_sudoku(const sudoku *input);
 
 #endif /* end of include guard: SUDOKU_SOLVE_H */

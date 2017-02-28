@@ -1,12 +1,11 @@
 #include "sudoku_solve.h"
 #include "sudoku_io.h"
+#include "sudoku_checking.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdbool.h>
-
-typedef unsigned __int128 uint128_t;
 
 typedef struct {
     int no_solutions;
@@ -14,91 +13,10 @@ typedef struct {
     sudoku *solution;
 } solve_state;
 
-// Checking function
-check_result check_list(int* values, unsigned size) {
-    unsigned listSize = size * size;
-    uint128_t valuesSeenSet = 0; // Using this as a bit set.
-
-    for(unsigned i = 0; i < listSize; ++i) {
-        if(values[i] != 0) {
-            if((valuesSeenSet & (1 << values[i])) != 0) {
-                return CR_INVALID;
-            }
-            else {
-                valuesSeenSet |= 1 << values[i];
-            }
-        }
-    }
-    for(unsigned i = 1; i <= listSize; ++i) {
-        if((valuesSeenSet & (1 << i)) == 0) {
-            return CR_INCOMPLETE;
-        }
-    }
-    return CR_COMPLETE;
-}
-
-
-check_result check_sudoku(sudoku *givenSudoku) {
-    check_result result = CR_COMPLETE;
-    // Initialize an buffer to hold the retrieved values.
-
-    const unsigned sectionSize = givenSudoku->size * givenSudoku->size;
-
-    int *valuesToCheck = malloc(sizeof(int) * sectionSize);
-
-    for(unsigned i = 0; i < sectionSize; ++i) {
-        get_row(givenSudoku, i, valuesToCheck);
-        switch(check_list(valuesToCheck, givenSudoku->size)) {
-        case CR_INCOMPLETE:
-            result = CR_INCOMPLETE;
-            break;
-        case CR_INVALID:
-            result = CR_INVALID;
-            goto cleanup_and_return;
-        default:
-            ; // Do nothing
-        }
-    }
-
-    for(unsigned i = 0; i < sectionSize; ++i) {
-        get_col(givenSudoku, i, valuesToCheck);
-        switch(check_list(valuesToCheck, givenSudoku->size)) {
-        case CR_INCOMPLETE:
-            result = CR_INCOMPLETE;
-            break;
-        case CR_INVALID:
-            result = CR_INVALID;
-            goto cleanup_and_return;
-        default:
-            ; // Do nothing
-        }
-    }
-    for(unsigned i = 0; i < givenSudoku->size; ++i) {
-        for(unsigned j = 0; j < givenSudoku->size; ++j) {
-            get_square(givenSudoku, i, j, valuesToCheck);
-            switch(check_list(valuesToCheck, givenSudoku->size)) {
-            case CR_INCOMPLETE:
-                result = CR_INCOMPLETE;
-                break;
-            case CR_INVALID:
-                result = CR_INVALID;
-                goto cleanup_and_return;
-            default:
-                ; // Do nothing
-            }
-        }
-    }
-
-cleanup_and_return:
-    free(valuesToCheck);
-    return result;
-}
-
-static int* checkValuesBuffer;
-
-static bool check_update(sudoku *s, position pos) {
+static bool check_update(const sudoku *s, position pos) {
 
     const unsigned sectionSize = s->size * s->size;
+    int checkValuesBuffer[sectionSize];
 
     get_row(s, pos.row, checkValuesBuffer);
     if(check_list(checkValuesBuffer, s->size) == CR_INVALID) {
@@ -151,16 +69,14 @@ static void _solve_sudoku(solve_state *state, unsigned startPoint) {
     }
 }
 
-solve_result solve_sudoku(sudoku *given_sudoku) {
+solve_result solve_sudoku(const sudoku *given_sudoku) {
     sudoku *sudokuCopy = copy_sudoku(given_sudoku);
 
-    checkValuesBuffer = malloc(sizeof(int) * sudokuCopy->size * sudokuCopy->size);
 
     solve_state state = (solve_state){0,sudokuCopy,NULL};
 
     _solve_sudoku(&state, 0);
 
-    free(checkValuesBuffer);
     free_sudoku(sudokuCopy);
 
     solve_result result;

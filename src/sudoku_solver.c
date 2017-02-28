@@ -1,5 +1,6 @@
 #include "sudoku_io.h"
 #include "sudoku_solve.h"
+#include "sudoku_checking.h"
 
 int main() {
     sudoku * givenSudoku = read_sudoku(stdin);

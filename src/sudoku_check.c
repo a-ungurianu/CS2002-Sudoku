@@ -1,5 +1,5 @@
 #include "sudoku_io.h"
-#include "sudoku_solve.h"
+#include "sudoku_checking.h"
 #include <stdbool.h>
 
 static const char* INVALID_STRING = "INVALID";

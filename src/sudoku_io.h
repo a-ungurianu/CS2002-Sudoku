@@ -5,6 +5,6 @@
 
 // I/O
 sudoku *read_sudoku(FILE *inputFile);
-void write_sudoku(FILE *outputFile, sudoku *sudoku);
+void write_sudoku(FILE *outputFile, const sudoku *sudoku);
 
 #endif
