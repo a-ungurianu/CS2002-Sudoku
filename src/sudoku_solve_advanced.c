@@ -439,6 +439,7 @@ solve_result solve_sudoku(const sudoku *input) {
             break;
     }
 
+    free_sudoku(toSolve);
     free(solutionObjects);
     free_constraint_table(table);
 
