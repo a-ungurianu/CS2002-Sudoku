@@ -3,21 +3,22 @@
 
 // Checking function
 check_result check_list(const int* values, unsigned size) {
+    const uint128_t ONE = 1;
     unsigned listSize = size * size;
     uint128_t valuesSeenSet = 0; // Using this as a bit set.
 
     for(unsigned i = 0; i < listSize; ++i) {
         if(values[i] != 0) {
-            if((valuesSeenSet & (1 << values[i])) != 0) {
+            if((valuesSeenSet & (ONE << values[i])) != 0) {
                 return CR_INVALID;
             }
             else {
-                valuesSeenSet |= 1 << values[i];
+                valuesSeenSet |= ONE << values[i];
             }
         }
     }
     for(unsigned i = 1; i <= listSize; ++i) {
-        if((valuesSeenSet & (1 << i)) == 0) {
+        if((valuesSeenSet & (ONE << i)) == 0) {
             return CR_INCOMPLETE;
         }
     }
