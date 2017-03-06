@@ -1,6 +1,6 @@
 CC = clang
-CFLAGS = -c -std=c99 -Wall -Wextra -Ofast
-LDFLAGS = -Wall -Wextra -Ofast
+CFLAGS = -c -std=c99 -Wall -Wextra -g
+LDFLAGS = -Wall -Wextra -g
 OBJ_DIR = out
 SRC_DIR = src
 
