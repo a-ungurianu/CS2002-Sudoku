@@ -47,7 +47,7 @@ static bool check_update(const sudoku *s, position pos) {
 
 
 /*
-    \param state intermediate solving state 
+    \param state intermediate solving state
     \param startPoint check from this point onwards
 */
 static void solve(solve_state *state, unsigned startPoint) {
@@ -93,7 +93,7 @@ static void solve(solve_state *state, unsigned startPoint) {
     /return the solve status of the sudoku (solved, unsolvable, or if multiple solutions were found)
             and a found solution, if possible
 
-    /sa _solve_sudoku
+    /sa solve
 
 */
 solve_result solve_sudoku(const sudoku *given_sudoku) {

@@ -7,26 +7,29 @@
 #include <limits.h>
 #include <stdbool.h>
 
+/*
+    Structure used as a node for the 2d circular doubly linked list.
 
+*/
 typedef struct table_links {
     struct table_links *up;
     struct table_links *down;
     struct table_links *left;
     struct table_links *right;
-    struct column_object *column;
+    struct column_object *column; //< Pointer to the column this cell is a part of.
 } table_links;
 
 typedef struct column_object {
     table_links links;
-    unsigned size;
-    char* name;
+    unsigned size; //< The number of elements in the array
+    char* name; //< The name of the column (useful for debugging)
 } column_object;
 
 typedef struct cell_object {
     table_links links;
-    unsigned row;
-    unsigned col;
-    unsigned value;
+    unsigned row; //< The row this constraint represents
+    unsigned col; //< The column this constraint represents
+    unsigned value; //< The value this constraint represents
 } cell_object;
 
 
@@ -35,11 +38,20 @@ typedef struct constraint_table {
 } constraint_table;
 
 typedef struct solve_state {
-    int no_solutions;
-    sudoku *current;
+    int no_solutions; //< number of solutions found
+    sudoku *current; //< the sudoku we're trying to solve
+    cell_object **solutionObjects;
     sudoku *solution;
 } solve_state;
 
+
+/*
+    Calculates the number of empty spaces (zeros) in the sudoku
+
+    \param sudoku the sudoku in which to counting
+
+    \return the number of zeros found
+*/
 static unsigned no_empty_spaces(const sudoku *s) {
     const unsigned sectionSize = s->size * s->size;
 
@@ -54,11 +66,21 @@ static unsigned no_empty_spaces(const sudoku *s) {
     return noEmptySpaces;
 }
 
-static void free_column_object(column_object* data) {
-    free(data->name);
-    free(data);
+/*
+    Frees a column_object struct.
+
+    \param object the object to be freed
+*/
+static void free_column_object(column_object* object) {
+    free(object->name);
+    free(object);
 }
 
+/*
+    Frees a column, including all the elements attached to it.
+
+    \param header the header of the column to be freed
+*/
 static void free_column(column_object* header) {
     table_links *current = header->links.down;
     while(current != header) {
@@ -67,6 +89,12 @@ static void free_column(column_object* header) {
     }
     free_column_object(header);
 }
+
+/*
+    Frees all the values held in the constraint table
+
+    \param table the constraint table to be freed
+*/
 
 static void free_constraint_table(constraint_table *table) {
     table_links *current = table->head->right;
@@ -78,6 +106,13 @@ static void free_constraint_table(constraint_table *table) {
     free(table);
 }
 
+/*
+    Add a given node to the left of a node that's in a horizontal cyclic
+    doubly linked list.
+
+    \param node the node relative to which we are adding
+    \paran toAdd the node to be added to the left of `node`
+*/
 static void link_left_of(table_links *node, table_links *toAdd) {
     if(node == NULL) {
         toAdd->right = toAdd;
@@ -91,7 +126,14 @@ static void link_left_of(table_links *node, table_links *toAdd) {
     }
 }
 
-static void link_above_of(table_links *node, table_links *toAdd) {
+/*
+    Add a given node to above a node that's in a vertical cyclic
+    doubly linked list.
+
+    \param node the node relative to which we are adding
+    \param toAdd the node to be added to above `node`
+*/
+static void link_above(table_links *node, table_links *toAdd) {
     if(node == NULL) {
         toAdd->down = toAdd;
         toAdd->up = toAdd;
@@ -104,26 +146,56 @@ static void link_above_of(table_links *node, table_links *toAdd) {
     }
 }
 
+/*
+    Link the left and right neighbour of a given node together, leaving the
+    covered node's links intact.
+
+    \param nodeToCover the node to be covered
+*/
 static void cover_left_right(table_links *nodeToCover) {
     nodeToCover->left->right = nodeToCover->right;
     nodeToCover->right->left = nodeToCover->left;
 }
 
+/*
+    Link the up and down neighbour of a given node together, leaving the
+    covered node's links intact.
+
+    \param nodeToCover the node to be covered
+*/
 static void cover_up_down( table_links *nodeToCover) {
     nodeToCover->up->down = nodeToCover->down;
     nodeToCover->down->up = nodeToCover->up;
 }
 
+/*
+    Restore the left and right neighbour of a given node, using the given node's
+    saved links.
+
+    \param nodeToCover the node to be uncovered
+*/
 static void uncover_left_right(table_links *nodeToUncover) {
     nodeToUncover->left->right = nodeToUncover;
     nodeToUncover->right->left = nodeToUncover;
 }
 
+/*
+    Restore the up and down neighbour of a given node, using the given node's
+    saved links.
+
+    \param nodeToCover the node to be uncovered
+*/
 static void uncover_up_down(table_links *nodeToUncover) {
     nodeToUncover->down->up = nodeToUncover;
     nodeToUncover->up->down = nodeToUncover;
 }
 
+/*
+    Add an empty column to the constraint table
+
+    \param table the table to add the column to
+    \param name the name of the column being added
+*/
 static column_object *add_column_header(constraint_table *table, char *name) {
     column_object* columnObj = malloc(sizeof(column_object));
     assert(columnObj != NULL);
@@ -133,20 +205,28 @@ static column_object *add_column_header(constraint_table *table, char *name) {
 
     columnObj->links.column = columnObj;
 
-    link_above_of(NULL, &columnObj->links);
+    link_above(NULL, &columnObj->links);
 
     link_left_of(table->head, &columnObj->links);
 
     return columnObj;
 }
 
+/*
+    Add a constraint (1 in the exact cover matrix) to the given column.
+
+    \param columnHeader the column to add to
+    \param row --
+    \param col -|-- values used to identify the matrix row.
+    \param val --
+*/
 static cell_object *add_constraint_to_column(column_object *columnHeader, unsigned row, unsigned col, unsigned val) {
     cell_object* cellObj = malloc(sizeof(cell_object));
     assert(cellObj != NULL);
 
     cellObj->links.column = columnHeader;
 
-    link_above_of(&columnHeader->links, &cellObj->links);
+    link_above(&columnHeader->links, &cellObj->links);
 
     cellObj->row = row;
     cellObj->col = col;
@@ -156,6 +236,14 @@ static cell_object *add_constraint_to_column(column_object *columnHeader, unsign
     return cellObj;
 }
 
+/*
+    Checks if the row, column and square corresponding to this position are invalid.
+
+    \param s the sudoke in which to check
+    \param pos the position around which to check
+
+    \returns if any of the row, column or square are invalid
+*/
 static bool check_update(const sudoku *s, position pos) {
     int buffer[s->size * s->size];
 
@@ -177,6 +265,11 @@ static bool check_update(const sudoku *s, position pos) {
     return true;
 }
 
+/*
+    Removes all the columns that have no values attached to them.
+
+    \param table the table to remove the zero-columns from
+*/
 static void remove_zero_columns(constraint_table *table) {
     column_object *current = table->head->right;
 
@@ -192,6 +285,18 @@ static void remove_zero_columns(constraint_table *table) {
     }
 }
 
+/*
+    Generates a constraint table from a given sudoku grid
+
+    This firstly generates all the columns of the constraint table and then
+    fills them with 1s by iterating through all the possible rows, columns and,
+    if the spaces is empty, values (which is equivalent to iterating through all
+    the rows of the exact cover matrix) and add in the necessary 1s.
+
+    \param s the partially filled sudoku grid
+
+    \return the generated constraint table
+*/
 static constraint_table *generate_table(sudoku *s) {
     constraint_table *table = malloc(sizeof(constraint_table));
     assert(table != NULL);
@@ -298,6 +403,14 @@ static constraint_table *generate_table(sudoku *s) {
     return table;
 }
 
+/*
+    Writes a given constraint table to the given output stream
+
+    Really useful function for debugging
+
+    \param table the table to write_table
+    \param output an output stream to write to
+*/
 static void write_table(constraint_table* table, FILE *output) {
     column_object * current = table->head->right;
     while(current != table->head) {
@@ -313,8 +426,13 @@ static void write_table(constraint_table* table, FILE *output) {
     }
 }
 
-static cell_object **solutionObjects;
+/*
+    Finds the column with the smallest number of elements
 
+    \param table table to search for the column
+
+    \return the smallest column found
+*/
 static column_object *get_smallest_column(constraint_table *table) {
     column_object * current = table->head->right;
 
@@ -331,6 +449,13 @@ static column_object *get_smallest_column(constraint_table *table) {
     return smallestColumn;
 }
 
+/*
+    Temporarily remove the given column from its coresponding constraint table
+
+    \param column the column to be removed
+
+    \sa uncover_column
+*/
 static void cover_column(column_object *column) {
     cover_left_right(column);
 
@@ -346,6 +471,13 @@ static void cover_column(column_object *column) {
     }
 }
 
+/*
+    Restore a column that was removed with the cover_column function
+
+    \param column pointer to the header of the removed column
+
+    \sa cover_column
+*/
 static void uncover_column(column_object *column) {
     cell_object* rowToUncover = column->links.up;
     while(rowToUncover != column) {
@@ -360,6 +492,13 @@ static void uncover_column(column_object *column) {
     uncover_left_right(column);
 }
 
+/*
+    Fills in a sudoku with a list of cell objects (which represents the row, column and values to be filled)
+
+    \param s the sudoku to be filled in
+    \param thingsToFill array of cell_objects that represents what rows and columns have to be filled with what values.
+    \param noThingsToFill the number of objects in the thingsToFill array.
+*/
 static sudoku * fill_in_sudoku(const sudoku *s, cell_object** thingsToFill, unsigned noThingsToFill) {
     sudoku *solved = copy_sudoku(s);
 
@@ -370,6 +509,13 @@ static sudoku * fill_in_sudoku(const sudoku *s, cell_object** thingsToFill, unsi
     return solved;
 }
 
+/*
+    Solves the constraint table and updates the solve state accordingly
+
+    \param table the table to be solved
+    \param state the intermediary state of solving the sudoku
+    \param depth the recursion depth of the algorithm
+*/
 static void solve_table(constraint_table *table, solve_state* state, unsigned depth) {
     if(state->no_solutions < 2) {
         table_links* head = table->head;
@@ -378,12 +524,12 @@ static void solve_table(constraint_table *table, solve_state* state, unsigned de
             state->no_solutions++;
             if(state->no_solutions == 1) {
                 assert(state->solution == NULL);
-                state->solution = fill_in_sudoku(state->current, solutionObjects, depth);
+                state->solution = fill_in_sudoku(state->current, state->solutionObjects, depth);
             }
             else {
                 assert(state->solution != NULL);
                 free_sudoku(state->solution);
-                state->solution = fill_in_sudoku(state->current, solutionObjects, depth);
+                state->solution = fill_in_sudoku(state->current, state->solutionObjects, depth);
             }
         }
         else {
@@ -395,7 +541,7 @@ static void solve_table(constraint_table *table, solve_state* state, unsigned de
             cell_object* rowToCover = smallestColumn->links.down;
 
             while(rowToCover != smallestColumn) {
-                solutionObjects[depth] = rowToCover;
+                state->solutionObjects[depth] = rowToCover;
 
                 cell_object* attachedCell = rowToCover->links.right;
                 while(attachedCell != rowToCover) {
@@ -404,7 +550,7 @@ static void solve_table(constraint_table *table, solve_state* state, unsigned de
                     attachedCell = attachedCell->links.right;
                 }
                 solve_table(table, state, depth + 1);
-                rowToCover = solutionObjects[depth];
+                rowToCover = state->solutionObjects[depth];
 
                 attachedCell = rowToCover->links.left;
                 while(attachedCell != rowToCover) {
@@ -420,16 +566,23 @@ static void solve_table(constraint_table *table, solve_state* state, unsigned de
     }
 }
 
+/*
+    Solves the given sudoku, abiding to the interface defined in sudoku_solve.h
+
+    \param input the sudoku to be solved
+
+    \returns a solve result object which contains the solving status and a solution, if found
+*/
 solve_result solve_sudoku(const sudoku *input) {
 
     sudoku *toSolve = copy_sudoku(input);
 
-    solutionObjects = malloc(sizeof(cell_object*) * no_empty_spaces(input)); // Compute the number by counting the number of zeros.
-    assert(solutionObjects);
-
     constraint_table *table = generate_table(toSolve);
 
-    solve_state state = (solve_state){0,toSolve,NULL};
+    cell_object** solutionObjects = malloc(sizeof(cell_object*) * no_empty_spaces(input)); // Compute the number by counting the number of zeros.
+    assert(solutionObjects);
+
+    solve_state state = (solve_state){0,toSolve,solutionObjects, NULL};
     solve_table(table, &state, 0);
 
     solve_result result;
