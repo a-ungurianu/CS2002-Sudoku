@@ -104,6 +104,26 @@ static void link_above_of(table_links *node, table_links *toAdd) {
     }
 }
 
+static void cover_left_right(table_links *nodeToCover) {
+    nodeToCover->left->right = nodeToCover->right;
+    nodeToCover->right->left = nodeToCover->left;
+}
+
+static void cover_up_down( table_links *nodeToCover) {
+    nodeToCover->up->down = nodeToCover->down;
+    nodeToCover->down->up = nodeToCover->up;
+}
+
+static void uncover_left_right(table_links *nodeToUncover) {
+    nodeToUncover->left->right = nodeToUncover;
+    nodeToUncover->right->left = nodeToUncover;
+}
+
+static void uncover_up_down(table_links *nodeToUncover) {
+    nodeToUncover->down->up = nodeToUncover;
+    nodeToUncover->up->down = nodeToUncover;
+}
+
 static column_object *add_column_header(constraint_table *table, char *name) {
     column_object* columnObj = malloc(sizeof(column_object));
     assert(columnObj != NULL);
@@ -161,9 +181,8 @@ static void remove_zero_columns(constraint_table *table) {
     column_object *current = table->head->right;
 
     while(current != table->head) {
-        if(current->size == 0) {
-            current->links.left->right = current->links.right;
-            current->links.right->left = current->links.left;
+        if(current->size == 0) {;
+            cover_left_right(&current->links);
             column_object *toDelete = current;
             current = current->links.right;
             free_column(toDelete);
@@ -313,15 +332,13 @@ static column_object *get_smallest_column(constraint_table *table) {
 }
 
 static void cover_column(column_object *column) {
-    column->links.right->left = column->links.left;
-    column->links.left->right = column->links.right;
+    cover_left_right(column);
 
     cell_object* rowToCover = column->links.down;
     while(rowToCover != column) {
         cell_object* attachedCell = rowToCover->links.right;
         while(attachedCell != rowToCover) {
-            attachedCell->links.down->up = attachedCell->links.up;
-            attachedCell->links.up->down = attachedCell->links.down;
+            cover_up_down(&attachedCell->links);
             attachedCell->links.column->size--;
             attachedCell = attachedCell->links.right;
         }
@@ -335,14 +352,12 @@ static void uncover_column(column_object *column) {
         cell_object* attachedCell = rowToUncover->links.left;
         while(attachedCell != rowToUncover) {
             attachedCell->links.column->size ++;
-            attachedCell->links.down->up = attachedCell;
-            attachedCell->links.up->down = attachedCell;
+            uncover_up_down(&attachedCell->links);
             attachedCell = attachedCell->links.left;
         }
         rowToUncover = rowToUncover->links.up;
     }
-    column->links.right->left = column;
-    column->links.left->right = column;
+    uncover_left_right(column);
 }
 
 static sudoku * fill_in_sudoku(const sudoku *s, cell_object** thingsToFill, unsigned noThingsToFill) {
