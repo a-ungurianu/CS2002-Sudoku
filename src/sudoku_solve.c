@@ -13,6 +13,15 @@ typedef struct {
     sudoku *solution;
 } solve_state;
 
+
+/*
+    Check if the row, column and square corresponding to this position are invalid.
+
+    \param s the sudoke in which to check
+    \param pos the position around which to check
+
+    \returns if any of the row, column or square are invalid
+*/
 static bool check_update(const sudoku *s, position pos) {
 
     const unsigned sectionSize = s->size * s->size;
@@ -36,22 +45,27 @@ static bool check_update(const sudoku *s, position pos) {
     return true;
 }
 
-static void _solve_sudoku(solve_state *state, unsigned startPoint) {
+
+/*
+    \param state intermediate solving state 
+    \param startPoint check from this point onwards
+*/
+static void solve(solve_state *state, unsigned startPoint) {
     if(state->no_solutions < 2) {
-        const unsigned no_cells = get_no_cells(state->current);
+        const unsigned onCells = get_no_cells(state->current);
         const unsigned valMax = state->current->size * state->current->size;
 
-        for(unsigned i = startPoint; i < no_cells; ++i) {
+        for(unsigned i = startPoint; i < onCells; ++i) {
             if(state->current->cells[i] == 0) {
                 for(unsigned val = 1; val <= valMax; ++val) {
                     position pos = index_to_position(state->current, i);
                     state->current->cells[i] = val;
                     if(check_update(state->current, pos)) {
-                        _solve_sudoku(state, i + 1);
+                        solve(state, i + 1);
                     }
                     state->current->cells[i] = 0;
                 }
-                return;
+                return; // We're only interested in the first zero we find.
             }
         }
 
@@ -69,13 +83,26 @@ static void _solve_sudoku(solve_state *state, unsigned startPoint) {
     }
 }
 
+/*
+    Tries to solve the given sudoku.
+
+    This is using backtracking to solve it.
+
+    /param input the sudoku to be solved
+
+    /return the solve status of the sudoku (solved, unsolvable, or if multiple solutions were found)
+            and a found solution, if possible
+
+    /sa _solve_sudoku
+
+*/
 solve_result solve_sudoku(const sudoku *given_sudoku) {
     sudoku *sudokuCopy = copy_sudoku(given_sudoku);
 
 
     solve_state state = (solve_state){0,sudokuCopy,NULL};
 
-    _solve_sudoku(&state, 0);
+    solve(&state, 0);
 
     free_sudoku(sudokuCopy);
 

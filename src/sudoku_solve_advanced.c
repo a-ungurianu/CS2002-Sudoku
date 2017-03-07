@@ -7,13 +7,6 @@
 #include <limits.h>
 #include <stdbool.h>
 
-#ifndef DEBUG
-    #define DEBUG 0
-#endif
-
-#define debug_print(fmt, ...) \
-            do { if (DEBUG) fprintf(stderr,fmt, __VA_ARGS__); } while (0)
-
 typedef struct column_data {
     unsigned size;
     char* name;
@@ -101,7 +94,7 @@ static data_object *add_column_header(constraint_table *table, char *name) {
 
     newColumnHeader->data.columnData = colData;
     newColumnHeader->column = newColumnHeader;
-    
+
     newColumnHeader->up = newColumnHeader;
     newColumnHeader->down = newColumnHeader;
     newColumnHeader->left = table->head->left;
