@@ -78,6 +78,32 @@ static void free_constraint_table(constraint_table *table) {
     free(table);
 }
 
+static void link_left_of(table_links *node, table_links *toAdd) {
+    if(node == NULL) {
+        toAdd->right = toAdd;
+        toAdd->left = toAdd;
+    }
+    else {
+        toAdd->left = node->left;
+        node->left->right = toAdd;
+        node->left = toAdd;
+        toAdd->right = node;
+    }
+}
+
+static void link_above_of(table_links *node, table_links *toAdd) {
+    if(node == NULL) {
+        toAdd->down = toAdd;
+        toAdd->up = toAdd;
+    }
+    else {
+        toAdd->up = node->up;
+        toAdd->down = node;
+        node->up->down = toAdd;
+        node->up = toAdd;
+    }
+}
+
 static column_object *add_column_header(constraint_table *table, char *name) {
     column_object* columnObj = malloc(sizeof(column_object));
     assert(columnObj != NULL);
@@ -87,12 +113,9 @@ static column_object *add_column_header(constraint_table *table, char *name) {
 
     columnObj->links.column = columnObj;
 
-    columnObj->links.up = columnObj;
-    columnObj->links.down = columnObj;
-    columnObj->links.left = table->head->left;
-    table->head->left->right = columnObj;
-    table->head->left = columnObj;
-    columnObj->links.right = table->head;
+    link_above_of(NULL, &columnObj->links);
+
+    link_left_of(table->head, &columnObj->links);
 
     return columnObj;
 }
@@ -103,10 +126,7 @@ static cell_object *add_constraint_to_column(column_object *columnHeader, unsign
 
     cellObj->links.column = columnHeader;
 
-    cellObj->links.up = columnHeader->links.up;
-    cellObj->links.down = columnHeader;
-    columnHeader->links.up->down = cellObj;
-    columnHeader->links.up = cellObj;
+    link_above_of(&columnHeader->links, &cellObj->links);
 
     cellObj->row = row;
     cellObj->col = col;
@@ -160,8 +180,7 @@ static constraint_table *generate_table(sudoku *s) {
     table->head = malloc(sizeof(table_links));
     assert(table->head != NULL);
 
-    table->head->left = table->head;
-    table->head->right = table->head;
+    link_left_of(NULL, table->head);
 
     unsigned sectionSize = s->size * s->size;
 
@@ -238,15 +257,12 @@ static constraint_table *generate_table(sudoku *s) {
                         cell_object *colNumberConstraint = add_constraint_to_column(colNumberHeader, row, col, val);
                         cell_object *boxNumberConstraint = add_constraint_to_column(boxNumberHeader, row, col, val);
 
-                        rowColumnConstraint->links.right = rowNumberConstraint;
-                        rowNumberConstraint->links.right = colNumberConstraint;
-                        colNumberConstraint->links.right = boxNumberConstraint;
-                        boxNumberConstraint->links.right = rowColumnConstraint;
+                        link_left_of(NULL, &rowColumnConstraint->links);
+                        link_left_of(&rowColumnConstraint->links, &rowNumberConstraint->links);
+                        link_left_of(&rowColumnConstraint->links, &colNumberConstraint->links);
+                        link_left_of(&rowColumnConstraint->links, &boxNumberConstraint->links);
 
-                        rowColumnConstraint->links.left = boxNumberConstraint;
-                        rowNumberConstraint->links.left = rowColumnConstraint;
-                        colNumberConstraint->links.left = rowNumberConstraint;
-                        boxNumberConstraint->links.left = colNumberConstraint;
+                        int i = 0; //DEBUG
                     }
                     set_cell(s, row, col, 0);
                 }
