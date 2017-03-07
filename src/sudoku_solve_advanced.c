@@ -64,7 +64,6 @@ static void free_column(column_object* header) {
     while(current != header) {
         current = current->down;
         free(current->up);
-        free(current);
     }
     free_column_object(header);
 }
