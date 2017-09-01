@@ -21,4 +21,5 @@ All three executables read the sudoku square from the standard input and when a 
 ### Input format
 
 On the first line, a number ```N``` representing the width of a box (a 9x9 sudoku would have N=3)
+
 On the next ```N*N``` lines, ```N*N``` numbers representing the value of that cell, or ```0``` if the cell is yet to be filled in.
