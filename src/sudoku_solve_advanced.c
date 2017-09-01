@@ -83,7 +83,7 @@ static void free_column_object(column_object* object) {
 */
 static void free_column(column_object* header) {
     table_links *current = header->links.down;
-    while(current != header) {
+    while(current != (table_links*) header) {
         current = current->down;
         free(current->up);
     }
@@ -97,10 +97,10 @@ static void free_column(column_object* header) {
 */
 
 static void free_constraint_table(constraint_table *table) {
-    table_links *current = table->head->right;
-    while(current != table->head) {
-        current = current->right;
-        free_column(current->left);
+    column_object *current = (column_object*) table->head->right;
+    while((table_links*) current != table->head) {
+        current = (column_object*) current->links.right;
+        free_column((column_object*) current->links.left);
     }
     free(table->head);
     free(table);
@@ -271,16 +271,16 @@ static bool check_update(const sudoku *s, position pos) {
     \param table the table to remove the zero-columns from
 */
 static void remove_zero_columns(constraint_table *table) {
-    column_object *current = table->head->right;
+    column_object *current = (column_object*) table->head->right;
 
-    while(current != table->head) {
+    while((table_links*) current != table->head) {
         if(current->size == 0) {;
             cover_left_right(&current->links);
             column_object *toDelete = current;
-            current = current->links.right;
+            current = (column_object*) current->links.right;
             free_column(toDelete);
         } else {
-            current = current->links.right;
+            current = (column_object*) current->links.right;
         }
     }
 }
@@ -386,7 +386,6 @@ static constraint_table *generate_table(sudoku *s) {
                         link_left_of(&rowColumnConstraint->links, &colNumberConstraint->links);
                         link_left_of(&rowColumnConstraint->links, &boxNumberConstraint->links);
 
-                        int i = 0; //DEBUG
                     }
                     set_cell(s, row, col, 0);
                 }
@@ -412,17 +411,17 @@ static constraint_table *generate_table(sudoku *s) {
     \param output an output stream to write to
 */
 static void write_table(constraint_table* table, FILE *output) {
-    column_object * current = table->head->right;
-    while(current != table->head) {
+    column_object * current = (column_object*) table->head->right;
+    while((table_links*) current != table->head) {
         fprintf(output, "%s(%d) :",current->name, current->size);
 
-        cell_object *currentVal = current->links.down;
-        while(currentVal != current) {
+        cell_object *currentVal = (cell_object*) current->links.down;
+        while((table_links*) currentVal != (table_links*)current) {
             fprintf(output, "(R%d C%d #%d) ", currentVal->row + 1, currentVal->col + 1, currentVal->value + 1);
-            currentVal = currentVal->links.down;
+            currentVal = (cell_object*) currentVal->links.down;
         }
         fprintf(output, "\n");
-        current = current->links.right;
+        current = (column_object*) current->links.right;
     }
 }
 
@@ -434,7 +433,7 @@ static void write_table(constraint_table* table, FILE *output) {
     \return the smallest column found
 */
 static column_object *get_smallest_column(constraint_table *table) {
-    column_object * current = table->head->right;
+    column_object *current = (column_object*) table->head->right;
 
     column_object *smallestColumn = NULL;
     unsigned smallestSize = UINT_MAX;
@@ -443,7 +442,7 @@ static column_object *get_smallest_column(constraint_table *table) {
             smallestSize = current->size;
             smallestColumn = current;
         }
-        current = current->links.right;
+        current = (column_object*) current->links.right;
     }
 
     return smallestColumn;
@@ -457,17 +456,17 @@ static column_object *get_smallest_column(constraint_table *table) {
     \sa uncover_column
 */
 static void cover_column(column_object *column) {
-    cover_left_right(column);
+    cover_left_right((table_links*) column);
 
-    cell_object* rowToCover = column->links.down;
-    while(rowToCover != column) {
-        cell_object* attachedCell = rowToCover->links.right;
-        while(attachedCell != rowToCover) {
+    table_links* rowToCover = column->links.down;
+    while(rowToCover != (table_links*) column) {
+        cell_object* attachedCell = (cell_object*) rowToCover->right;
+        while((table_links*) attachedCell != rowToCover) {
             cover_up_down(&attachedCell->links);
             attachedCell->links.column->size--;
-            attachedCell = attachedCell->links.right;
+            attachedCell = (cell_object*) attachedCell->links.right;
         }
-        rowToCover = rowToCover->links.down;
+        rowToCover = rowToCover->down;
     }
 }
 
@@ -479,17 +478,17 @@ static void cover_column(column_object *column) {
     \sa cover_column
 */
 static void uncover_column(column_object *column) {
-    cell_object* rowToUncover = column->links.up;
-    while(rowToUncover != column) {
-        cell_object* attachedCell = rowToUncover->links.left;
-        while(attachedCell != rowToUncover) {
+    table_links* rowToUncover = column->links.up;
+    while(rowToUncover != (table_links*) column) {
+        cell_object* attachedCell = (cell_object*) rowToUncover->left;
+        while((table_links*) attachedCell != rowToUncover) {
             attachedCell->links.column->size ++;
-            uncover_up_down(&attachedCell->links);
-            attachedCell = attachedCell->links.left;
+            uncover_up_down((table_links*) attachedCell);
+            attachedCell = (cell_object*) attachedCell->links.left;
         }
-        rowToUncover = rowToUncover->links.up;
+        rowToUncover = rowToUncover->up;
     }
-    uncover_left_right(column);
+    uncover_left_right((table_links*) column);
 }
 
 /*
@@ -511,6 +510,9 @@ static sudoku * fill_in_sudoku(const sudoku *s, cell_object** thingsToFill, unsi
 
 /*
     Solves the constraint table and updates the solve state accordingly
+
+    Heavily inspired by the algorithm presented here: 
+        https://en.wikipedia.org/wiki/Exact_cover#Sudoku
 
     \param table the table to be solved
     \param state the intermediary state of solving the sudoku
@@ -538,27 +540,27 @@ static void solve_table(constraint_table *table, solve_state* state, unsigned de
 
             // Cover column
             cover_column(smallestColumn);
-            cell_object* rowToCover = smallestColumn->links.down;
+            table_links* rowToCover = smallestColumn->links.down;
 
-            while(rowToCover != smallestColumn) {
-                state->solutionObjects[depth] = rowToCover;
+            while(rowToCover != (table_links*) smallestColumn) {
+                state->solutionObjects[depth] = (cell_object*) rowToCover;
 
-                cell_object* attachedCell = rowToCover->links.right;
-                while(attachedCell != rowToCover) {
+                cell_object* attachedCell = (cell_object*) rowToCover->right;
+                while((table_links*) attachedCell != rowToCover) {
                     // Cover column for attachedCell
                     cover_column(attachedCell->links.column);
-                    attachedCell = attachedCell->links.right;
+                    attachedCell = (cell_object*) attachedCell->links.right;
                 }
                 solve_table(table, state, depth + 1);
-                rowToCover = state->solutionObjects[depth];
+                rowToCover = (table_links*) state->solutionObjects[depth];
 
-                attachedCell = rowToCover->links.left;
-                while(attachedCell != rowToCover) {
+                attachedCell = (cell_object*) rowToCover->left;
+                while((table_links*) attachedCell != rowToCover) {
                     // Uncover column for attachedCell
                     uncover_column(attachedCell->links.column);
-                    attachedCell = attachedCell->links.left;
+                    attachedCell = (cell_object*) attachedCell->links.left;
                 }
-                rowToCover = rowToCover->links.down;
+                rowToCover = rowToCover->down;
             }
             // Uncover column
             uncover_column(smallestColumn);

@@ -1,7 +1,6 @@
 #include "sudoku_checking.h"
 
 
-
 // Checking functions
 
 /*
@@ -79,6 +78,8 @@ check_result check_sudoku(const sudoku *givenSudoku) {
                 break;
             case CR_INVALID:
                 return CR_INVALID;
+            case CR_COMPLETE:
+                ;// Already checked
         }
     }
 
@@ -90,6 +91,8 @@ check_result check_sudoku(const sudoku *givenSudoku) {
                 break;
             case CR_INVALID:
                 return CR_INVALID;
+            case CR_COMPLETE:
+                ;// Already checked
         }
     }
     for(unsigned i = 0; i < givenSudoku->size; ++i) {
@@ -101,6 +104,8 @@ check_result check_sudoku(const sudoku *givenSudoku) {
                     break;
                 case CR_INVALID:
                     return CR_INVALID;
+                case CR_COMPLETE:
+                    ;// Already checked
             }
         }
     }
